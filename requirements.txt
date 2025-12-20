@@ -1,0 +1,6 @@
+flask
+numpy
+scipy
+matplotlib
+pillow
+imageio[ffmpeg]

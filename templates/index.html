@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Численная симуляция квантовой дифракции электронного пучка</title>
+    <style>
+        body {font-family: Arial, sans-serif; background: #f4f4f9; margin: 20px; color: #333;}
+        h1 {text-align: center; color: #2c3e50;}
+        details {background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        summary {font-size: 1.5em; font-weight: bold; cursor: pointer; color: #2980b9;}
+        #controls {float: left; width: 450px; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+        #results-container {margin-left: 510px; display: flex; gap: 20px; flex-wrap: wrap;}
+        .result-block {flex: 1; min-width: 350px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+        .result-block h3 {margin-top: 0; color: #2c3e50; text-align: center; font-size: 1.1em;}
+        label {display: block; margin: 15px 0 5px; font-weight: bold;}
+        input[type="range"] {width: 100%;}
+        .val {float: right; font-weight: normal; color: #7f8c8d;}
+        .unit {font-size: 0.85em; color: #95a5a6; margin-left: 5px;}
+        button {margin-top: 30px; padding: 14px 28px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 17px; cursor: pointer; width: 100%;}
+        button:hover {background: #219a52;}
+        #loading {color: #e74c3c; font-weight: bold; margin-top: 20px; text-align: center; display: none;}
+        img {max-width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background: #000; display: block; margin: 15px auto 0;}
+        #grid {display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; margin: 15px 0;}
+        .cell {width: 18px; height: 18px; background: white; border: 1px solid #ccc; cursor: pointer;}
+        .cell.active {background: black;}
+        .no-diff {color: #e67e22; text-align: center; padding: 40px; font-style: italic;}
+        .screen-param {background: #e8f5e9; padding: 10px; border-radius: 5px; margin-top: 10px;}
+        .matrix-buttons {display: flex; gap: 10px; margin-bottom: 10px;}
+        .matrix-buttons button {width: auto; padding: 5px 15px; margin-top: 0;}
+        .btn-clear {background: #e74c3c;}
+        .btn-clear:hover {background: #c0392b;}
+        .btn-fill {background: #3498db;}
+        .btn-fill:hover {background: #2980b9;}
+        .info-box {background: #e8f4fd; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #3498db; font-size: 0.9em;}
+        .warning-box {background: #fff3cd; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ffc107; font-size: 0.9em;}
+        table.params {width: 100%; border-collapse: collapse; margin: 10px 0;}
+        table.params td {padding: 5px 10px; border: 1px solid #ddd;}
+        table.params td:first-child {font-weight: bold; background: #f8f9fa;}
+    </style>
+</head>
+<body>
+<h1>Численная симуляция квантовой дифракции электронного пучка</h1>
+
+<details open>
+    <summary>Теоретический экскурс</summary>
+    <div>
+        <p>Проект моделирует прохождение широкого электронного пучка через апертуру (щель, отверстие или произвольную структуру) в <strong>полном 3D пространстве</strong>. В классической физике частица прошла бы только через открытую область, но в квантовой механике электрон проявляет волновые свойства — происходит дифракция и интерференция.</p>
+
+        <h4>Начальные параметры апертур (по умолчанию):</h4>
+        <table class="params">
+            <tr><td>Одна щель</td><td>Ширина: <strong>30 у.е.</strong> (условных единиц длины)</td></tr>
+            <tr><td>Две щели</td><td>Ширина каждой: <strong>30 у.е.</strong>, расстояние между центрами: <strong>80 у.е.</strong></td></tr>
+            <tr><td>Три щели</td><td>Ширина каждой: <strong>30 у.е.</strong>, расстояние: <strong>80 у.е.</strong></td></tr>
+            <tr><td>Круглое отверстие</td><td>Диаметр: <strong>30 у.е.</strong></td></tr>
+        </table>
+
+        <p>При одной щели наблюдается <strong>дифракция</strong>: пучок рассеивается, ширина картины обратно пропорциональна ширине щели (принцип неопределённости). При двух щелях — <strong>интерференция</strong>: чередование максимумов и минимумов интенсивности. Для круглого отверстия образуется характерная <strong>картина Эйри</strong> с центральным пятном и концентрическими кольцами.</p>
+
+        <div class="info-box">
+            <strong>О 3D симуляции:</strong><br>
+            Волновой пакет распространяется в 3D пространстве (X, Y, Z). Апертура расположена в плоскости X-Y при Z = Z<sub>mask</sub>.
+            Экран — это 2D плоскость X-Y при Z = Z<sub>screen</sub>. Благодаря этому мы получаем <strong>полноценную 2D дифракционную картину</strong>
+            на экране, как в реальном эксперименте!
+        </div>
+
+        <div class="warning-box">
+            <strong>Внимание:</strong> 3D симуляция требует значительных вычислительных ресурсов.
+            Расчёт может занять <strong>1–3 минуты</strong> в зависимости от мощности сервера.
+        </div>
+    </div>
+</details>
+
+<details>
+    <summary>Ключевые формулы</summary>
+    <div>
+        <p><strong>Уравнение Шрёдингера (3D, зависящее от времени):</strong><br>
+            iħ ∂ψ/∂t = - (ħ²/2m) (∂²ψ/∂x² + ∂²ψ/∂y² + ∂²ψ/∂z²) + V(x,y,z)ψ</p>
+
+        <p><strong>Плотность вероятности на экране (2D):</strong><br>
+            P(x, y, t) = |ψ(x, y, z<sub>screen</sub>, t)|²</p>
+
+        <p><strong>Принцип неопределённости Гейзенберга:</strong><br>
+            Δx · Δp<sub>x</sub> ≥ ħ/2, &nbsp; Δy · Δp<sub>y</sub> ≥ ħ/2</p>
+
+        <p><strong>Дифракция Фраунгофера:</strong><br>
+            I(k<sub>x</sub>, k<sub>y</sub>) ∝ |FT{aperture(x,y)}|²</p>
+
+        <p><strong>Численный метод Split-Step Fourier (3D):</strong><br>
+            Каждый шаг: ψ → e<sup>-iVdt/2</sup> → FFT3D → e<sup>-i(k²)dt/2</sup> → IFFT3D → e<sup>-iVdt/2</sup></p>
+    </div>
+</details>
+
+<div id="controls">
+    <h2>Параметры симуляции</h2>
+    <form id="sim_form">
+        <label>Тип апертуры:</label>
+        <select id="preset" name="preset" onchange="updateParams()">
+            <option value="single">Одна щель</option>
+            <option value="double">Две щели</option>
+            <option value="triple">Три щели</option>
+            <option value="circle">Круглое отверстие</option>
+            <option value="image">Из изображения (белое = проход)</option>
+            <option value="matrix">Ручная матрица 20×20</option>
+        </select>
+
+        <div id="slit_width_div">
+            <label>Ширина щели / диаметр: <span class="val" id="wVal">30</span><span class="unit">у.е.</span></label>
+            <input type="range" name="slit_width" min="8" max="80" value="30" oninput="document.getElementById('wVal').textContent=this.value">
+        </div>
+        <div id="gap_div">
+            <label>Расстояние между щелями: <span class="val" id="gVal">80</span><span class="unit">у.е.</span></label>
+            <input type="range" name="gap" min="30" max="160" value="80" oninput="document.getElementById('gVal').textContent=this.value">
+        </div>
+
+        <label>Положение апертуры по Z: <span class="val" id="ymVal">0</span><span class="unit">у.е.</span></label>
+        <input type="range" name="z_mask" min="-50" max="50" value="0" oninput="document.getElementById('ymVal').textContent=this.value">
+
+        <label>Положение экрана по Z: <span class="val" id="ysVal">80</span><span class="unit">у.е.</span></label>
+        <input type="range" name="z_screen" min="40" max="120" value="80" oninput="document.getElementById('ysVal').textContent=this.value">
+
+        <label>Центральный импульс k₀: <span class="val" id="kVal">2.5</span><span class="unit">рад/у.е. (λ ≈ 2π/k₀)</span></label>
+        <input type="range" name="k0" min="1.0" max="6.0" step="0.1" value="2.5" oninput="document.getElementById('kVal').textContent=this.value">
+
+        <label>Ширина пучка по X: <span class="val" id="sxVal">60</span><span class="unit">у.е.</span></label>
+        <input type="range" name="sigma_x" min="30" max="100" value="60" oninput="document.getElementById('sxVal').textContent=this.value">
+
+        <label>Ширина пучка по Y: <span class="val" id="syVal">60</span><span class="unit">у.е.</span></label>
+        <input type="range" name="sigma_y" min="30" max="100" value="60" oninput="document.getElementById('syVal').textContent=this.value">
+
+        <label>Начальная ширина по Z (σ<sub>z</sub>): <span class="val" id="szVal">20</span><span class="unit">у.е.</span></label>
+        <input type="range" name="sigma_z" min="10" max="50" value="20" oninput="document.getElementById('szVal').textContent=this.value">
+
+        <label>Начальное положение пучка (Z₀): <span class="val" id="z0Val">-80</span><span class="unit">у.е.</span></label>
+        <input type="range" name="initial_z0" min="-110" max="-50" value="-80" oninput="document.getElementById('z0Val').textContent=this.value">
+
+        <div id="mask_div" style="display:none;">
+            <label>Загрузить маску (ч/б, белое = проход):</label>
+            <input type="file" name="mask_image" accept="image/*">
+        </div>
+
+        <div id="matrix_div" style="display:none;">
+            <p>Чёрное = барьер, белое = щель. Кликните чтобы переключить:</p>
+            <div class="matrix-buttons">
+                <button type="button" class="btn-fill" onclick="fillMatrix()">Заполнить всё</button>
+                <button type="button" class="btn-clear" onclick="clearMatrix()">Очистить всё</button>
+            </div>
+            <div id="grid"></div>
+            <input type="hidden" name="matrix" id="matrix_input">
+        </div>
+
+        <button type="button" onclick="runSimulation()">Запустить 3D симуляцию</button>
+    </form>
+</div>
+
+<div id="results-container">
+    <div class="result-block">
+        <h3>Эволюция волнового пакета (срез X-Z)</h3>
+        <div id="loading">3D расчёт запущен... Подождите 1–3 минуты</div>
+        <img id="anim_gif" style="display:none;" alt="Анимация распространения и дифракции">
+    </div>
+
+    <div class="result-block">
+        <h3>2D дифракционная картина на экране (численный метод)</h3>
+        <div id="no_num" class="no-diff" style="display:none;">Нет данных с экрана</div>
+        <img id="num_img" style="display:none;" alt="Численная 2D дифракционная картина">
+    </div>
+
+    <div class="result-block">
+        <h3>Дифракция Фраунгофера (аналитика, для сравнения)</h3>
+        <div id="no_diff" class="no-diff" style="display:none;">Нет апертуры — дифракционная картина отсутствует</div>
+        <img id="diff_img" style="display:none;" alt="Аналитическая дифракционная картина">
+    </div>
+</div>
+
+<script>
+    const gridSize = 20;
+    let matrix = null;
+
+    function createGrid() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        matrix = Array(gridSize).fill().map(() => Array(gridSize).fill(1));
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell active';
+                cell.dataset.i = i;
+                cell.dataset.j = j;
+                cell.onclick = function() {
+                    const ci = parseInt(this.dataset.i);
+                    const cj = parseInt(this.dataset.j);
+                    matrix[ci][cj] = 1 - matrix[ci][cj];
+                    this.classList.toggle('active');
+                    document.getElementById('matrix_input').value = JSON.stringify(matrix);
+                };
+                grid.appendChild(cell);
+            }
+        }
+        document.getElementById('matrix_input').value = JSON.stringify(matrix);
+    }
+
+    function clearMatrix() {
+        matrix = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+        const cells = document.querySelectorAll('#grid .cell');
+        cells.forEach(cell => cell.classList.remove('active'));
+        document.getElementById('matrix_input').value = JSON.stringify(matrix);
+    }
+
+    function fillMatrix() {
+        matrix = Array(gridSize).fill().map(() => Array(gridSize).fill(1));
+        const cells = document.querySelectorAll('#grid .cell');
+        cells.forEach(cell => cell.classList.add('active'));
+        document.getElementById('matrix_input').value = JSON.stringify(matrix);
+    }
+
+    function updateParams() {
+        const preset = document.getElementById('preset').value;
+        document.getElementById('slit_width_div').style.display =
+            (preset === 'image' || preset === 'matrix') ? 'none' : 'block';
+        document.getElementById('gap_div').style.display =
+            (preset === 'single' || preset === 'circle' || preset === 'image' || preset === 'matrix') ? 'none' : 'block';
+        document.getElementById('mask_div').style.display = preset === 'image' ? 'block' : 'none';
+        document.getElementById('matrix_div').style.display = preset === 'matrix' ? 'block' : 'none';
+        if (preset === 'matrix') createGrid();
+    }
+    updateParams();
+
+    function runSimulation() {
+        const form = document.getElementById('sim_form');
+        const data = new FormData(form);
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('anim_gif').style.display = 'none';
+        document.getElementById('diff_img').style.display = 'none';
+        document.getElementById('num_img').style.display = 'none';
+        document.getElementById('no_diff').style.display = 'none';
+        document.getElementById('no_num').style.display = 'none';
+
+        fetch('/simulate', {method: 'POST', body: data})
+            .then(response => response.json())
+            .then(result => {
+                document.getElementById('loading').style.display = 'none';
+
+                if (result.gif_url) {
+                    document.getElementById('anim_gif').src = result.gif_url + '?t=' + Date.now();
+                    document.getElementById('anim_gif').style.display = 'block';
+                }
+                if (result.num_url) {
+                    document.getElementById('num_img').src = result.num_url + '?t=' + Date.now();
+                    document.getElementById('num_img').style.display = 'block';
+                    document.getElementById('no_num').style.display = 'none';
+                } else {
+                    document.getElementById('num_img').style.display = 'none';
+                    document.getElementById('no_num').style.display = 'block';
+                }
+                if (result.diff_url) {
+                    document.getElementById('diff_img').src = result.diff_url + '?t=' + Date.now();
+                    document.getElementById('diff_img').style.display = 'block';
+                    document.getElementById('no_diff').style.display = 'none';
+                } else {
+                    document.getElementById('diff_img').style.display = 'none';
+                    document.getElementById('no_diff').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading').textContent = 'Ошибка: ' + err;
+            });
+    }
+</script>
+
+<div style="clear: both;"></div>
+</body>
+</html>
