@@ -41,6 +41,7 @@
         .info-box {background: #e8f4fd; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #3498db; font-size: 0.95em;}
         .warning-box {background: #fff3cd; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ffc107; font-size: 0.95em;}
         .success-box {background: #d4edda; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #28a745; font-size: 0.95em;}
+        .physics-box {background: #f3e5f5; padding: 12px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9c27b0; font-size: 0.95em;}
         table.params {width: 100%; border-collapse: collapse; margin: 10px 0;}
         table.params td {padding: 8px 12px; border: 1px solid #ddd;}
         table.params td:first-child {font-weight: bold; background: #f8f9fa; width: 40%;}
@@ -49,6 +50,7 @@
         li {margin: 5px 0; line-height: 1.5;}
         code {background: #f1f1f1; padding: 2px 6px; border-radius: 3px; font-family: monospace;}
         footer {text-align: center; margin-top: 40px; padding: 20px; color: #7f8c8d; font-size: 0.9em; clear: both;}
+        .formula {text-align: center; font-size: 1.1em; background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;}
     </style>
 </head>
 <body>
@@ -56,22 +58,22 @@
 
 <div class="tabs-container">
     <div class="tabs-header">
-        <button class="tab-btn" onclick="openTab(event, 'tab1')">Теоретические основы</button>
+        <button class="tab-btn active" onclick="openTab(event, 'tab1')">Теоретические основы</button>
         <button class="tab-btn" onclick="openTab(event, 'tab2')">Ключевые формулы</button>
         <button class="tab-btn" onclick="openTab(event, 'tab3')">Техническая реализация</button>
         <button class="tab-btn" onclick="openTab(event, 'tab4')">Руководство пользователя</button>
     </div>
 
-    <div id="tab1" class="tab-content">
+    <div id="tab1" class="tab-content active">
         <h4>Что такое дифракция электронов</h4>
         <p>Данный проект моделирует прохождение электронного волнового пакета через апертуру (щель, отверстие или произвольную структуру) в <strong>полном трехмерном пространстве</strong>.</p>
 
-        <p>В классической физике электрон - это частица, которая прошла бы только через открытую область барьера. Однако в квантовой механике электрон описывается <strong>волновой функцией</strong>, которая подчиняется уравнению Шредингера. Это приводит к характерным волновым эффектам:</p>
+        <p>В классической физике электрон — это частица, которая прошла бы только через открытую область барьера. Однако в квантовой механике электрон описывается <strong>волновой функцией</strong>, которая подчиняется уравнению Шрёдингера. Это приводит к характерным волновым эффектам:</p>
 
         <ul>
-            <li><strong>Дифракция</strong> - расширение пучка после прохождения через узкую щель</li>
-            <li><strong>Интерференция</strong> - сложение волн от нескольких щелей с образованием полос</li>
-            <li><strong>Принцип неопределенности</strong> - чем уже щель, тем больше разброс импульсов</li>
+            <li><strong>Дифракция</strong> — расширение пучка после прохождения через узкую щель</li>
+            <li><strong>Интерференция</strong> — сложение волн от нескольких щелей с образованием полос</li>
+            <li><strong>Принцип неопределённости</strong> — чем уже щель, тем больше разброс импульсов</li>
         </ul>
 
         <h4>Типы апертур и ожидаемые картины</h4>
@@ -79,12 +81,12 @@
             <tr><td>Одна щель</td><td>Центральный максимум с боковыми минимумами (дифракция)</td></tr>
             <tr><td>Две щели</td><td>Интерференционные полосы (эксперимент Юнга)</td></tr>
             <tr><td>Три щели</td><td>Более сложная интерференционная картина с дополнительными максимумами</td></tr>
-            <tr><td>Круглое отверстие</td><td>Картина Эйри - центральное пятно с концентрическими кольцами</td></tr>
+            <tr><td>Круглое отверстие</td><td>Картина Эйри — центральное пятно с концентрическими кольцами</td></tr>
         </table>
 
         <div class="info-box">
             <strong>О 3D симуляции:</strong><br>
-            Волновой пакет распространяется в трехмерном пространстве (X, Y, Z). Апертура расположена в плоскости X-Y при заданном Z. Экран - это 2D плоскость X-Y при другом значении Z. Благодаря этому мы получаем <strong>полноценную двумерную дифракционную картину</strong>, как в реальном эксперименте.
+            Волновой пакет распространяется в трёхмерном пространстве (X, Y, Z). Апертура расположена в плоскости X-Y при заданном Z. Экран — это 2D плоскость X-Y при другом значении Z. Благодаря этому мы получаем <strong>полноценную двумерную дифракционную картину</strong>, как в реальном эксперименте.
         </div>
 
         <h4>Связь с реальными экспериментами</h4>
@@ -92,80 +94,128 @@
     </div>
 
     <div id="tab2" class="tab-content">
-        <h4>Уравнение Шредингера (3D, зависящее от времени)</h4>
-        <p style="text-align: center; font-size: 1.1em; background: #f8f9fa; padding: 15px; border-radius: 5px;">
-            ih d/dt = -(h^2/2m)(d^2/dx^2 + d^2/dy^2 + d^2/dz^2) + V(x,y,z)
+        <h4>Уравнение Шрёдингера (3D, зависящее от времени)</h4>
+        <p class="formula">
+            iℏ ∂ψ/∂t = −(ℏ²/2m)(∂²/∂x² + ∂²/∂y² + ∂²/∂z²)ψ + V(x,y,z)ψ
         </p>
 
         <h4>Плотность вероятности</h4>
         <p>Вероятность обнаружить электрон в точке (x, y, z) пропорциональна:</p>
-        <p style="text-align: center; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-            P(x, y, z, t) = |psi(x, y, z, t)|^2
+        <p class="formula">
+            P(x, y, z, t) = |ψ(x, y, z, t)|²
         </p>
 
-        <h4>Принцип неопределенности Гейзенберга</h4>
-        <p style="text-align: center; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-            delta_x * delta_p >= h/2
+        <h4>Принцип неопределённости Гейзенберга</h4>
+        <p class="formula">
+            Δx · Δp ≥ ℏ/2
         </p>
         <p>Это объясняет, почему узкая щель приводит к большему расхождению пучка.</p>
 
         <h4>Длина волны де Бройля</h4>
-        <p style="text-align: center; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-            lambda = h/p = 2*pi/k0
+        <p class="formula">
+            λ = h / p = h / (m·v)
         </p>
-        <p>где k0 - волновой вектор электрона.</p>
+        <p>где h — постоянная Планка, p — импульс электрона, m — масса, v — скорость.</p>
+
+        <p>Связь с волновым вектором:</p>
+        <p class="formula">
+            λ = 2π / k₀
+        </p>
 
         <h4>Дифракция Фраунгофера (дальняя зона)</h4>
-        <p style="text-align: center; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-            I(kx, ky) ~ |Fourier{aperture(x,y)}|^2
+        <p class="formula">
+            I(k<sub>x</sub>, k<sub>y</sub>) ∝ |ℱ{aperture(x,y)}|²
         </p>
-        <p>Интенсивность в дальней зоне равна квадрату модуля Фурье-образа апертуры.</p>
+        <p>Интенсивность в дальней зоне равна квадрату модуля Фурье-образа апертуры. Это справедливо, когда расстояние до экрана много больше размера апертуры и длины волны.</p>
     </div>
 
     <div id="tab3" class="tab-content">
         <h4>Используемые технологии</h4>
         <table class="params">
             <tr><td>Серверная часть</td><td>Python 3, Flask (веб-фреймворк)</td></tr>
-            <tr><td>Численные расчеты</td><td>NumPy, SciPy (FFT)</td></tr>
+            <tr><td>Численные расчёты</td><td>NumPy, SciPy (FFT)</td></tr>
             <tr><td>Визуализация</td><td>Matplotlib</td></tr>
-            <tr><td>Обработка изображений</td><td>OpenCV, Pillow</td></tr>
+            <tr><td>Обработка изображений</td><td>OpenCV, imageio</td></tr>
             <tr><td>Создание анимаций</td><td>imageio (GIF)</td></tr>
             <tr><td>Клиентская часть</td><td>HTML5, CSS3, JavaScript</td></tr>
         </table>
 
-        <h4>Численный метод Split-Step Fourier</h4>
-        <p>Для решения уравнения Шредингера используется метод расщепления оператора (Split-Step Fourier Method). На каждом временном шаге dt:</p>
-        <ol>
-            <li><strong>Полушаг потенциала:</strong> умножение на exp(-iV*dt/2h)</li>
-            <li><strong>Кинетический шаг:</strong> переход в k-пространство через 3D FFT, умножение на exp(-ik^2*dt/2m), обратное FFT</li>
-            <li><strong>Полушаг потенциала:</strong> умножение на exp(-iV*dt/2h)</li>
-            <li><strong>Поглощающие границы:</strong> умножение на маску затухания для предотвращения отражений</li>
-        </ol>
-
-        <h4>Параметры сетки</h4>
+        <h4>Три режима визуализации</h4>
         <table class="params">
-            <tr><td>Размер 3D сетки</td><td>80 x 80 x 80 точек</td></tr>
-            <tr><td>Физический размер области</td><td>100 x 100 x 100 нм</td></tr>
-            <tr><td>Шаг по пространству</td><td>1.25 нм</td></tr>
-            <tr><td>Шаг по времени</td><td>0.08 фс (фемтосекунд)</td></tr>
+            <tr><td>1. Анимация (GIF)</td><td>Динамика волнового пакета, срез X-Z. Показывает прохождение через апертуру в реальном времени</td></tr>
+            <tr><td>2. Численная дифракция</td><td>Дифракция Френеля (ближняя зона). Накопленная интенсивность на экране при конечном расстоянии</td></tr>
+            <tr><td>3. Дифракция Фраунгофера</td><td>Аналитическое решение для дальней зоны (бесконечное расстояние). Вычисляется через 2D Фурье-преобразование</td></tr>
         </table>
 
-        <h4>Единицы измерения</h4>
-        <p>В симуляции используется система единиц, где:</p>
+        <h4>Почему используется метод Split-Step Fourier?</h4>
+        <p>Метод расщепления оператора (Split-Step Fourier) необходим для моделирования <strong>динамики</strong> волнового пакета:</p>
         <ul>
-            <li>Длина измеряется в <strong>нанометрах (нм)</strong></li>
-            <li>Время измеряется в <strong>фемтосекундах (фс)</strong></li>
-            <li>Волновой вектор k0 измеряется в <strong>рад/нм</strong></li>
+            <li>Мы хотим видеть <strong>как</strong> волна проходит через щель, а не только итоговую картину</li>
+            <li>Барьер имеет <strong>конечную толщину</strong> (2-3 точки сетки ≈ 2.5-3.75 нм), это не идеализированная бесконечно тонкая апертура</li>
+            <li>Метод позволяет учесть <strong>потенциал барьера</strong> V(x,y,z) произвольной формы</li>
+            <li>Можно наблюдать эффекты <strong>ближней зоны</strong> (дифракция Френеля) при малых расстояниях до экрана</li>
         </ul>
+
+        <div class="physics-box">
+            <strong>Альтернатива — Angular Spectrum Method:</strong><br>
+            Для получения только итоговой картины (без динамики) можно было бы использовать метод углового спектра. Однако при больших расстояниях до экрана он сводится к обычному Фурье-преобразованию, что мы и делаем для картины Фраунгофера.
+        </div>
+
+        <h4>Численный метод Split-Step Fourier</h4>
+        <p>На каждом временном шаге dt выполняется:</p>
+        <ol>
+            <li><strong>Полушаг потенциала:</strong> ψ → ψ · exp(−iV·dt/2ℏ)</li>
+            <li><strong>Обнуление на барьере:</strong> ψ = 0 где V > V<sub>max</sub></li>
+            <li><strong>Кинетический шаг:</strong> FFT → умножение на exp(−ik²·dt/2m) → обратное FFT</li>
+            <li><strong>Полушаг потенциала:</strong> ψ → ψ · exp(−iV·dt/2ℏ)</li>
+            <li><strong>Поглощающие границы:</strong> умножение на маску затухания</li>
+            <li><strong>Накопление на экране:</strong> суммирование |ψ|² на позиции экрана</li>
+        </ol>
+
+        <h4>Параметры симуляции</h4>
+        <table class="params">
+            <tr><td>Размер 3D сетки</td><td>80 × 80 × 80 точек</td></tr>
+            <tr><td>Физический размер области</td><td>100 × 100 × 100 нм</td></tr>
+            <tr><td>Шаг по пространству</td><td>1.25 нм</td></tr>
+            <tr><td>Шаг по времени</td><td>0.08 фс (атомные единицы)</td></tr>
+            <tr><td>Толщина барьера</td><td>~2-3 точки сетки (2.5-3.75 нм)</td></tr>
+            <tr><td>Расстояние до экрана</td><td>Задаётся пользователем (по умолчанию ~80 нм от апертуры)</td></tr>
+        </table>
+
+        <h4>Система единиц</h4>
+        <div class="warning-box">
+            <strong>Важно:</strong> Симуляция использует <strong>безразмерные (атомные) единицы</strong>, где ℏ = m = 1. Все размеры указаны в нанометрах для наглядности, но физически это масштабированная модель квантовой системы.
+        </div>
+
+        <table class="params">
+            <tr><td>Длина</td><td>нанометры (нм) — условные единицы модели</td></tr>
+            <tr><td>Время</td><td>фемтосекунды (фс) — условные единицы модели</td></tr>
+            <tr><td>Волновой вектор k₀</td><td>рад/нм</td></tr>
+            <tr><td>Длина волны λ</td><td>λ = 2π/k₀ (при k₀=2.5: λ ≈ 2.5 нм)</td></tr>
+        </table>
+
+        <h4>Когерентность пучка</h4>
+        <p>В симуляции моделируется <strong>когерентный</strong> волновой пакет — одиночный гауссов пакет с определённой фазой. Это соответствует идеализированному случаю полностью когерентного электронного пучка.</p>
+
+        <h4>Сравнение дифракции Френеля и Фраунгофера</h4>
+        <table class="params">
+            <tr><td>Дифракция Френеля (численная)</td><td>Ближняя зона. Расстояние до экрана сравнимо с размером апертуры. Учитывает кривизну волнового фронта</td></tr>
+            <tr><td>Дифракция Фраунгофера (аналитическая)</td><td>Дальняя зона (z → ∞). Волновой фронт плоский. Картина = Фурье-образ апертуры</td></tr>
+        </table>
 
         <div class="success-box">
             <strong>Преимущества 3D симуляции:</strong><br>
-            В отличие от 2D приближения, полная 3D симуляция позволяет наблюдать реалистичную двумерную дифракционную картину на экране, учитывает распространение во всех направлениях и корректно моделирует круглые апертуры.
+            • Реалистичная 2D дифракционная картина (X-Y плоскость)<br>
+            • Визуализация динамики прохождения через щель<br>
+            • Возможность наблюдать дифракцию Френеля при малых расстояниях<br>
+            • Корректное моделирование круглых апертур и сложных масок
         </div>
 
         <div class="warning-box">
-            <strong>Вычислительные требования:</strong><br>
-            3D симуляция требует значительных ресурсов. Расчет занимает от 1 до 3 минут в зависимости от мощности процессора. Сетка 80^3 = 512 000 точек обрабатывается на каждом из 500-1500 временных шагов.
+            <strong>Ограничения модели:</strong><br>
+            • Малый размер области (100 нм) — это модельная система, не реальный эксперимент<br>
+            • Безразмерные единицы — физические константы (ℏ, m) нормированы к 1<br>
+            • Время расчёта: 1-3 минуты для сетки 80³ точек
         </div>
     </div>
 
@@ -174,27 +224,31 @@
         <ol>
             <li><strong>Выберите тип апертуры</strong> из выпадающего списка</li>
             <li><strong>Настройте параметры</strong> с помощью ползунков</li>
-            <li><strong>Нажмите Запустить</strong> и дождитесь завершения расчета</li>
+            <li><strong>Нажмите Запустить</strong> и дождитесь завершения расчёта</li>
             <li><strong>Изучите результаты:</strong> анимацию распространения и дифракционные картины</li>
         </ol>
 
         <h4>Описание параметров</h4>
         <table class="params">
-            <tr><td>Ширина щели</td><td>Размер отверстия в барьере. Меньшая ширина - сильнее дифракция</td></tr>
-            <tr><td>Расстояние между щелями</td><td>Для двух или трех щелей. Влияет на период интерференционных полос</td></tr>
+            <tr><td>Ширина щели</td><td>Размер отверстия в барьере. Меньшая ширина — сильнее дифракция</td></tr>
+            <tr><td>Расстояние между щелями</td><td>Для двух или трёх щелей. Влияет на период интерференционных полос</td></tr>
             <tr><td>Положение апертуры Z</td><td>Где расположен барьер со щелью вдоль оси распространения</td></tr>
-            <tr><td>Положение экрана Z</td><td>Где измеряется дифракционная картина</td></tr>
-            <tr><td>Импульс k0</td><td>Начальный импульс электрона. Определяет длину волны</td></tr>
-            <tr><td>Ширина пучка sigma</td><td>Начальный размер волнового пакета в каждом направлении</td></tr>
-            <tr><td>Начальное положение Z0</td><td>Откуда стартует волновой пакет</td></tr>
+            <tr><td>Положение экрана Z</td><td>Где измеряется дифракционная картина (расстояние от апертуры)</td></tr>
+            <tr><td>Импульс k₀</td><td>Волновой вектор электрона. λ = 2π/k₀</td></tr>
+            <tr><td>Ширина пучка σ</td><td>Начальный размер волнового пакета в каждом направлении</td></tr>
+            <tr><td>Начальное положение Z₀</td><td>Откуда стартует волновой пакет</td></tr>
         </table>
 
         <h4>Интерпретация результатов</h4>
         <ul>
-            <li><strong>Анимация (срез X-Z)</strong> - показывает распространение пакета во времени, вид сбоку</li>
-            <li><strong>2D картина на экране</strong> - численно рассчитанная дифракционная картина</li>
-            <li><strong>Дифракция Фраунгофера</strong> - аналитическое решение для сравнения</li>
+            <li><strong>Анимация (срез X-Z)</strong> — показывает распространение пакета во времени, вид сбоку. Видно как волна проходит через щель и расходится</li>
+            <li><strong>2D картина на экране (численный метод)</strong> — дифракция Френеля при конечном расстоянии. Это то, что было бы видно на реальном экране</li>
+            <li><strong>Дифракция Фраунгофера</strong> — идеализированная картина для бесконечно удалённого экрана. Показывает «чистую» структуру дифракции</li>
         </ul>
+
+        <div class="info-box">
+            <strong>Совет:</strong> Сравните численную картину (Френель) с аналитической (Фраунгофер). При увеличении расстояния до экрана они должны становиться более похожими.
+        </div>
     </div>
 </div>
 
@@ -208,7 +262,7 @@
             <option value="triple">Три щели</option>
             <option value="circle">Круглое отверстие</option>
             <option value="image">Из изображения</option>
-            <option value="matrix">Ручная матрица 20x20</option>
+            <option value="matrix">Ручная матрица 20×20</option>
         </select>
 
         <div id="slit_width_div">
@@ -226,8 +280,8 @@
         <label>Положение экрана по Z: <span class="val" id="ysVal">80</span><span class="unit">нм</span></label>
         <input type="range" name="z_screen" min="40" max="120" value="80" oninput="document.getElementById('ysVal').textContent=this.value">
 
-        <label>Центральный импульс k0: <span class="val" id="kVal">2.5</span><span class="unit">рад/нм</span></label>
-        <input type="range" name="k0" min="1.0" max="6.0" step="0.1" value="2.5" oninput="document.getElementById('kVal').textContent=this.value">
+        <label>Волновой вектор k₀: <span class="val" id="kVal">2.5</span><span class="unit">рад/нм</span> (λ ≈ <span id="lambdaVal">2.5</span> нм)</label>
+        <input type="range" name="k0" min="1.0" max="6.0" step="0.1" value="2.5" oninput="updateK0(this.value)">
 
         <label>Ширина пучка по X: <span class="val" id="sxVal">60</span><span class="unit">нм</span></label>
         <input type="range" name="sigma_x" min="30" max="100" value="60" oninput="document.getElementById('sxVal').textContent=this.value">
@@ -238,19 +292,19 @@
         <label>Ширина пучка по Z: <span class="val" id="szVal">20</span><span class="unit">нм</span></label>
         <input type="range" name="sigma_z" min="10" max="50" value="20" oninput="document.getElementById('szVal').textContent=this.value">
 
-        <label>Начальное положение пучка Z0: <span class="val" id="z0Val">-80</span><span class="unit">нм</span></label>
+        <label>Начальное положение пучка Z₀: <span class="val" id="z0Val">-80</span><span class="unit">нм</span></label>
         <input type="range" name="initial_z0" min="-110" max="-50" value="-80" oninput="document.getElementById('z0Val').textContent=this.value">
 
         <div id="mask_div" style="display:none;">
-            <label>Загрузить маску (черно-белое изображение, белое = проход):</label>
+            <label>Загрузить маску (чёрно-белое изображение, белое = проход):</label>
             <input type="file" name="mask_image" accept="image/*">
         </div>
 
         <div id="matrix_div" style="display:none;">
-            <p>Черное = барьер, белое = щель. Кликните для переключения:</p>
+            <p>Чёрное = барьер, белое = щель. Кликните для переключения:</p>
             <div class="matrix-buttons">
-                <button type="button" class="btn-fill" onclick="fillMatrix()">Заполнить все</button>
-                <button type="button" class="btn-clear" onclick="clearMatrix()">Очистить все</button>
+                <button type="button" class="btn-fill" onclick="fillMatrix()">Заполнить всё</button>
+                <button type="button" class="btn-clear" onclick="clearMatrix()">Очистить всё</button>
             </div>
             <div id="grid"></div>
             <input type="hidden" name="matrix" id="matrix_input">
@@ -263,19 +317,19 @@
 <div id="results-container">
     <div class="result-block">
         <h3>Эволюция волнового пакета (срез X-Z)</h3>
-        <div id="loading">3D расчет запущен... Подождите 1-3 минуты</div>
+        <div id="loading">3D расчёт запущен... Подождите 1-3 минуты</div>
         <img id="anim_gif" style="display:none;" alt="Анимация распространения волнового пакета">
     </div>
 
     <div class="result-block">
-        <h3>Дифракционная картина на экране (численный метод)</h3>
-        <div id="no_num" class="no-diff" style="display:none;">Нет данных с экрана - апертура полностью закрыта</div>
+        <h3>Дифракция Френеля (численный метод, ближняя зона)</h3>
+        <div id="no_num" class="no-diff" style="display:none;">Нет данных с экрана — апертура полностью закрыта</div>
         <img id="num_img" style="display:none;" alt="Численная 2D дифракционная картина">
     </div>
 
     <div class="result-block">
-        <h3>Дифракция Фраунгофера (аналитика)</h3>
-        <div id="no_diff" class="no-diff" style="display:none;">Нет апертуры - дифракционная картина отсутствует</div>
+        <h3>Дифракция Фраунгофера (аналитика, дальняя зона)</h3>
+        <div id="no_diff" class="no-diff" style="display:none;">Нет апертуры — дифракционная картина отсутствует</div>
         <img id="diff_img" style="display:none;" alt="Аналитическая дифракционная картина Фраунгофера">
     </div>
 </div>
@@ -292,6 +346,12 @@
         }
         document.getElementById(tabId).classList.add('active');
         evt.currentTarget.classList.add('active');
+    }
+
+    function updateK0(value) {
+        document.getElementById('kVal').textContent = value;
+        var lambda = (2 * Math.PI / parseFloat(value)).toFixed(1);
+        document.getElementById('lambdaVal').textContent = lambda;
     }
 
     const gridSize = 20;
@@ -345,6 +405,7 @@
         if (preset === 'matrix') createGrid();
     }
     updateParams();
+    updateK0(2.5);
 
     function runSimulation() {
         const form = document.getElementById('sim_form');
@@ -390,8 +451,9 @@
 </script>
 
 <footer>
-    <p>Квантовая дифракция электронов - образовательный проект</p>
-    <p>Численное решение 3D уравнения Шредингера методом Split-Step Fourier</p>
+    <p>Квантовая дифракция электронов — образовательный проект</p>
+    <p>Численное решение 3D уравнения Шрёдингера методом Split-Step Fourier</p>
+    <p style="font-size: 0.8em; color: #999;">Модель использует безразмерные единицы (ℏ = m = 1). Размеры указаны условно в нанометрах.</p>
 </footer>
 
 </body>

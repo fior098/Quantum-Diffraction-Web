@@ -21,7 +21,70 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
 
 
-def create_2d_aperture(params, N, mask_path=None, matrix_str=None):
+def create_2d_aperture_for_simulation(params, N, mask_path=None, matrix_str=None):
+    preset = params.get('preset', 'single')
+    slit_width = float(params.get('slit_width', 30))
+    gap = float(params.get('gap', 80))
+
+    scale = N / 256.0
+    slit_width_px = max(2, int(slit_width * scale))
+    gap_px = int(gap * scale)
+
+    aperture = np.zeros((N, N), dtype=float)
+    center = N // 2
+
+    if preset == 'matrix' and matrix_str:
+        matrix = json.loads(matrix_str)
+        small = np.array(matrix, dtype=float)
+        small_inverted = 1.0 - small
+        aperture = zoom(small_inverted, N / small.shape[0], order=0)
+        aperture = np.clip(aperture, 0, 1)
+        return aperture
+
+    if preset == 'image' and mask_path and os.path.exists(mask_path):
+        img = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            img = cv2.resize(img, (N, N), interpolation=cv2.INTER_LANCZOS4)
+            img = np.flipud(img)
+            aperture = (img / 255.0).T
+            return aperture
+
+    if preset == 'single':
+        half_w = slit_width_px // 2
+        x_start = max(0, center - half_w)
+        x_end = min(N, center + half_w)
+        aperture[x_start:x_end, :] = 1.0
+
+    elif preset == 'double':
+        half_w = slit_width_px // 2
+        half_g = gap_px // 2
+        x1_start = max(0, center - half_g - half_w)
+        x1_end = max(0, center - half_g + half_w)
+        x2_start = min(N, center + half_g - half_w)
+        x2_end = min(N, center + half_g + half_w)
+        aperture[x1_start:x1_end, :] = 1.0
+        aperture[x2_start:x2_end, :] = 1.0
+
+    elif preset == 'triple':
+        half_w = slit_width_px // 2
+        aperture[center - half_w:center + half_w, :] = 1.0
+        x1_start = max(0, center - gap_px - half_w)
+        x1_end = max(0, center - gap_px + half_w)
+        aperture[x1_start:x1_end, :] = 1.0
+        x2_start = min(N, center + gap_px - half_w)
+        x2_end = min(N, center + gap_px + half_w)
+        aperture[x2_start:x2_end, :] = 1.0
+
+    elif preset == 'circle':
+        Y_grid, X_grid = np.ogrid[:N, :N]
+        radius = slit_width_px / 2
+        dist = np.sqrt((X_grid - center)**2 + (Y_grid - center)**2)
+        aperture[dist <= radius] = 1.0
+
+    return aperture
+
+
+def create_2d_aperture_for_fraunhofer(params, N, mask_path=None, matrix_str=None):
     preset = params.get('preset', 'single')
     slit_width = float(params.get('slit_width', 30))
     gap = float(params.get('gap', 80))
@@ -170,7 +233,7 @@ def run_dynamic_simulation_3d(params, mask_path=None, matrix_str=None):
     z0 = max(-L/2 + sigma_z + 5, min(z0, z_mask - 10))
     z_screen = min(L/2 - 5, max(z_screen, z_mask + 10))
 
-    aperture_2d = create_2d_aperture(params, N, mask_path, matrix_str)
+    aperture_2d = create_2d_aperture_for_simulation(params, N, mask_path, matrix_str)
     V, barrier_z_start, barrier_z_end, screen_z_start, screen_z_end = create_potential_3d(
         aperture_2d, N, z, z_mask, z_screen)
 
@@ -359,11 +422,6 @@ def create_numerical_diffraction_image_2d(x, y, intensity_2d, z_screen, has_aper
     return os.path.join('results', num_name)
 
 
-def create_pure_aperture_for_diffraction(params, mask_path=None, matrix_str=None):
-    N = 512
-    return create_2d_aperture(params, N, mask_path, matrix_str)
-
-
 def compute_fraunhofer_diffraction(aperture):
     N = aperture.shape[0]
     has_aperture = np.sum(aperture) > 0
@@ -436,8 +494,8 @@ def simulate():
         num_rel = create_numerical_diffraction_image_2d(
             x_coords, y_coords, screen_intensity_2d, z_screen, has_aperture)
 
-    aperture = create_pure_aperture_for_diffraction(params, mask_path, matrix_str)
-    intensity, aperture_vis = compute_fraunhofer_diffraction(aperture)
+    aperture_fraunhofer = create_2d_aperture_for_fraunhofer(params, 512, mask_path, matrix_str)
+    intensity, aperture_vis = compute_fraunhofer_diffraction(aperture_fraunhofer)
 
     diff_rel = None
     if intensity is not None:
