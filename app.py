@@ -12,6 +12,8 @@ import json
 import imageio.v2 as imageio
 import io
 
+plt.rcParams['font.family'] = 'DejaVu Sans'
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['RESULTS_FOLDER'] = 'static/results'
@@ -79,6 +81,18 @@ def create_2d_aperture(params, N, mask_path=None, matrix_str=None):
         aperture[dist <= radius] = 1.0
 
     return aperture
+
+
+def get_preset_name_ru(preset):
+    names = {
+        'single': 'одна щель',
+        'double': 'две щели',
+        'triple': 'три щели',
+        'circle': 'круглое отверстие',
+        'matrix': 'матрица',
+        'image': 'изображение'
+    }
+    return names.get(preset, preset)
 
 
 def create_potential_3d(aperture_2d, N, z, z_mask, z_screen):
@@ -202,6 +216,9 @@ def run_dynamic_simulation_3d(params, mask_path=None, matrix_str=None):
 
     barrier_xz = V[:, N//2, :] > 1e5
 
+    preset = params.get('preset', 'single')
+    preset_ru = get_preset_name_ru(preset)
+
     for step in range(total_steps):
         psi_current *= potential_half
         psi_current[barrier_mask] = 0.0
@@ -238,27 +255,24 @@ def run_dynamic_simulation_3d(params, mask_path=None, matrix_str=None):
                       aspect='auto')
 
             ax.axhline(y=z_screen, color='lime', linewidth=2, linestyle='-',
-                       label=f'Screen (z={z_screen:.1f})')
+                       label=f'Экран (z={z_screen:.1f} нм)')
             ax.axhline(y=z_mask, color='cyan', linewidth=1, linestyle=':',
-                       alpha=0.5, label=f'Slit (z={z_mask:.1f})')
+                       alpha=0.5, label=f'Щель (z={z_mask:.1f} нм)')
 
             ax.legend(loc='upper right', facecolor='black',
                       labelcolor='white', fontsize=9)
 
             progress = (step / total_steps) * 100
-            screen_max = screen_intensity.max()
-            preset = params.get('preset', 'single')
-            ax.set_title(f't = {current_time:.1f} | {preset} | Progress: {progress:.0f}% | '
-                         f'k0={k0:.2f}',
-                         color='white', fontsize=11)
-            ax.set_xlabel('X', color='white', fontsize=11)
-            ax.set_ylabel('Z (propagation direction)', color='white', fontsize=11)
+            ax.set_title(f'Время: {current_time:.1f} фс | {preset_ru} | Прогресс: {progress:.0f}%',
+                         color='white', fontsize=12)
+            ax.set_xlabel('X (нм)', color='white', fontsize=11)
+            ax.set_ylabel('Z — направление распространения (нм)', color='white', fontsize=11)
             ax.tick_params(colors='white')
             fig.patch.set_facecolor('black')
             ax.set_facecolor('black')
 
             cbar = plt.colorbar(im, ax=ax, shrink=0.8)
-            cbar.set_label('|psi|^2', color='white')
+            cbar.set_label('Плотность вероятности |ψ|²', color='white')
             cbar.ax.yaxis.set_tick_params(color='white')
             plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
@@ -294,16 +308,16 @@ def create_numerical_diffraction_image_2d(x, y, intensity_2d, z_screen, has_aper
     im = ax1.imshow(intensity_norm.T, cmap='hot', origin='lower',
                     extent=[x.min(), x.max(), y.min(), y.max()],
                     vmin=0, vmax=1, aspect='equal')
-    ax1.set_xlabel('X', color='white', fontsize=12)
-    ax1.set_ylabel('Y', color='white', fontsize=12)
-    ax1.set_title(f'2D Diffraction Pattern on Screen (Z = {z_screen:.1f})\n'
-                  f'Numerical Solution of 3D Schrodinger Equation',
+    ax1.set_xlabel('X (нм)', color='white', fontsize=12)
+    ax1.set_ylabel('Y (нм)', color='white', fontsize=12)
+    ax1.set_title(f'2D дифракционная картина на экране (Z = {z_screen:.1f} нм)\n'
+                  f'Численное решение 3D уравнения Шрёдингера',
                   color='white', fontsize=14)
     ax1.tick_params(colors='white')
     ax1.set_facecolor('black')
 
     cbar = plt.colorbar(im, ax=ax1, shrink=0.7, pad=0.02)
-    cbar.set_label('Intensity (accumulated)', color='white')
+    cbar.set_label('Интенсивность (накопленная)', color='white')
     cbar.ax.yaxis.set_tick_params(color='white')
     plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
 
@@ -312,9 +326,9 @@ def create_numerical_diffraction_image_2d(x, y, intensity_2d, z_screen, has_aper
     profile_x /= profile_x.max() + 1e-20
     ax2.plot(x, profile_x, 'lime', linewidth=2)
     ax2.fill_between(x, 0, profile_x, alpha=0.3, color='lime')
-    ax2.set_xlabel('X', color='white')
-    ax2.set_ylabel('I (sum over Y)', color='white')
-    ax2.set_title('Profile along X', color='white')
+    ax2.set_xlabel('X (нм)', color='white')
+    ax2.set_ylabel('I (сумма по Y)', color='white')
+    ax2.set_title('Профиль вдоль оси X', color='white')
     ax2.tick_params(colors='white')
     ax2.set_facecolor('black')
     ax2.set_xlim(x.min(), x.max())
@@ -326,9 +340,9 @@ def create_numerical_diffraction_image_2d(x, y, intensity_2d, z_screen, has_aper
     profile_y /= profile_y.max() + 1e-20
     ax3.plot(y, profile_y, 'cyan', linewidth=2)
     ax3.fill_between(y, 0, profile_y, alpha=0.3, color='cyan')
-    ax3.set_xlabel('Y', color='white')
-    ax3.set_ylabel('I (sum over X)', color='white')
-    ax3.set_title('Profile along Y', color='white')
+    ax3.set_xlabel('Y (нм)', color='white')
+    ax3.set_ylabel('I (сумма по X)', color='white')
+    ax3.set_title('Профиль вдоль оси Y', color='white')
     ax3.tick_params(colors='white')
     ax3.set_facecolor('black')
     ax3.set_xlim(y.min(), y.max())
@@ -440,18 +454,20 @@ def simulate():
         crop_ap = N_ap // 8
         aperture_crop = aperture_vis[crop_ap:-crop_ap, crop_ap:-crop_ap]
 
+        preset_ru = get_preset_name_ru(preset)
+
         fig = plt.figure(figsize=(10, 12))
         gs = fig.add_gridspec(2, 1, height_ratios=[10, 2], hspace=0.05)
 
         ax1 = fig.add_subplot(gs[0])
         ax1.imshow(intensity_crop, cmap='gray', vmin=0, vmax=1)
-        ax1.set_title(f'Fraunhofer Diffraction ({preset})',
+        ax1.set_title(f'Дифракция Фраунгофера ({preset_ru})\nАналитическое решение (дальняя зона)',
                       color='white', fontsize=14)
         ax1.axis('off')
 
         ax2 = fig.add_subplot(gs[1])
         ax2.imshow(aperture_crop, cmap='gray', vmin=0, vmax=1)
-        ax2.set_title('Aperture (white = open)', color='white', fontsize=12)
+        ax2.set_title('Апертура (белое = открыто)', color='white', fontsize=12)
         ax2.axis('off')
 
         fig.patch.set_facecolor('black')
