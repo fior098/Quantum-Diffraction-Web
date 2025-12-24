@@ -1,8 +1,9 @@
 @echo off
-chcp 65001 >nul
-
-pip install flask numpy scipy matplotlib opencv-python pillow imageio[ffmpeg] >nul 2>&1
-
-start http://localhost:5000
+echo Installing dependencies...
+pip install flask numpy scipy matplotlib pillow
+echo.
+echo Starting Diffraction Simulator...
+echo Open browser at http://localhost:5000
+echo.
 python app.py
 pause
