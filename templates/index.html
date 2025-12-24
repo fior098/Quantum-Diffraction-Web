@@ -34,7 +34,7 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 350px 1fr;
+            grid-template-columns: 380px 1fr;
             gap: 30px;
         }
 
@@ -70,8 +70,7 @@
 
         input[type="number"],
         input[type="range"],
-        select,
-        textarea {
+        select {
             width: 100%;
             padding: 12px;
             border: 1px solid rgba(0, 212, 255, 0.3);
@@ -83,8 +82,7 @@
         }
 
         input[type="number"]:focus,
-        select:focus,
-        textarea:focus {
+        select:focus {
             outline: none;
             border-color: #00d4ff;
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
@@ -106,13 +104,6 @@
             background: #00d4ff;
             cursor: pointer;
             box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-        }
-
-        .range-value {
-            text-align: center;
-            color: #00d4ff;
-            font-weight: bold;
-            margin-top: 5px;
         }
 
         .aperture-buttons {
@@ -290,12 +281,6 @@
             background: rgba(0, 212, 255, 0.2);
         }
 
-        textarea {
-            height: 150px;
-            font-family: monospace;
-            resize: vertical;
-        }
-
         .loading {
             display: none;
             text-align: center;
@@ -350,6 +335,79 @@
             font-style: italic;
         }
 
+        .section-divider {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 1em;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .aperture-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            background: rgba(0, 212, 255, 0.2);
+            padding: 2px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .grid-cell {
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 2px;
+        }
+
+        .grid-cell:hover {
+            border-color: #00d4ff;
+        }
+
+        .grid-cell.active {
+            background: #ffffff;
+            border-color: #00d4ff;
+        }
+
+        .grid-buttons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .grid-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 212, 255, 0.1);
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .grid-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
         @media (max-width: 1200px) {
             .main-layout {
                 grid-template-columns: 1fr;
@@ -385,7 +443,7 @@
                     <button class="aperture-btn" data-type="triple">3 щели</button>
                     <button class="aperture-btn" data-type="circle">Круг</button>
                     <button class="aperture-btn" data-type="image">Фото</button>
-                    <button class="aperture-btn" data-type="matrix">Матрица</button>
+                    <button class="aperture-btn" data-type="grid">Сетка</button>
                 </div>
             </div>
 
@@ -422,16 +480,37 @@
                 </div>
             </div>
 
-            <div class="custom-input-section" id="matrix-input">
+            <div class="custom-input-section" id="grid-input">
                 <div class="form-group">
-                    <label>Матрица апертуры (1 = щель, 0 = блок):</label>
-                    <textarea id="matrix-data" placeholder="0 0 1 1 1 0 0
-0 0 1 1 1 0 0
-0 0 1 1 1 0 0
-0 0 1 1 1 0 0
-0 0 1 1 1 0 0"></textarea>
+                    <label>Нарисуйте апертуру (белое = щель):</label>
+                    <div class="grid-container">
+                        <div class="aperture-grid" id="aperture-grid"></div>
+                        <div class="grid-buttons">
+                            <button class="grid-btn" onclick="clearGrid()">Очистить</button>
+                            <button class="grid-btn" onclick="fillGrid()">Заполнить</button>
+                            <button class="grid-btn" onclick="invertGrid()">Инвертировать</button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <hr class="section-divider">
+            <div class="section-title">Параметры дифракции</div>
+
+            <div class="form-group">
+                <label>Масштаб дифракции (порядки): <span id="scale-val">1.0</span></label>
+                <input type="range" id="diffraction-scale" min="1" max="10" step="0.5" value="1">
+                <div class="note">Больше = больше светлых и тёмных полос</div>
+            </div>
+
+            <div class="form-group">
+                <label>Контраст (гамма): <span id="gamma-val">0.30</span></label>
+                <input type="range" id="gamma" min="0.1" max="1.0" step="0.05" value="0.3">
+                <div class="note">Меньше = ярче слабые максимумы</div>
+            </div>
+
+            <hr class="section-divider">
+            <div class="section-title">Физические параметры</div>
 
             <div class="form-group">
                 <label>Энергия электронов (эВ):</label>
@@ -445,7 +524,7 @@
 
             <div class="form-group">
                 <label>Расстояние до экрана (м):</label>
-                <input type="number" id="screen-distance" value="1.0" min="0" max="100" step="0.1">
+                <input type="number" id="screen-distance" value="0.1" min="0" max="100" step="0.1">
                 <div class="note">При z=0 отображается апертура</div>
             </div>
 
@@ -530,6 +609,10 @@
                             <span class="info-label">Количество электронов:</span>
                             <span class="info-value" id="electrons-info">-</span>
                         </div>
+                        <div class="info-item">
+                            <span class="info-label">Масштаб дифракции:</span>
+                            <span class="info-value" id="scale-info">-</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -540,6 +623,62 @@
 <script>
     let currentApertureType = 'single';
     let customImageData = null;
+    let gridState = Array(10).fill(null).map(() => Array(10).fill(0));
+
+    function initGrid() {
+        const grid = document.getElementById('aperture-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.dataset.row = i;
+                cell.dataset.col = j;
+                cell.addEventListener('click', () => toggleCell(i, j, cell));
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    function toggleCell(row, col, cell) {
+        gridState[row][col] = gridState[row][col] === 0 ? 1 : 0;
+        cell.classList.toggle('active');
+    }
+
+    function clearGrid() {
+        gridState = Array(10).fill(null).map(() => Array(10).fill(0));
+        document.querySelectorAll('.grid-cell').forEach(cell => cell.classList.remove('active'));
+    }
+
+    function fillGrid() {
+        gridState = Array(10).fill(null).map(() => Array(10).fill(1));
+        document.querySelectorAll('.grid-cell').forEach(cell => cell.classList.add('active'));
+    }
+
+    function invertGrid() {
+        const cells = document.querySelectorAll('.grid-cell');
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                gridState[i][j] = gridState[i][j] === 0 ? 1 : 0;
+            }
+        }
+        cells.forEach(cell => cell.classList.toggle('active'));
+    }
+
+    function updateGridDisplay() {
+        const cells = document.querySelectorAll('.grid-cell');
+        cells.forEach(cell => {
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            if (gridState[row][col] === 1) {
+                cell.classList.add('active');
+            } else {
+                cell.classList.remove('active');
+            }
+        });
+    }
+
+    initGrid();
 
     document.querySelectorAll('.aperture-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -555,7 +694,7 @@
         document.getElementById('double-params').classList.add('hidden');
         document.getElementById('circle-params').classList.add('hidden');
         document.getElementById('image-input').classList.remove('active');
-        document.getElementById('matrix-input').classList.remove('active');
+        document.getElementById('grid-input').classList.remove('active');
 
         if (['single', 'double', 'triple'].includes(currentApertureType)) {
             document.getElementById('slit-params').classList.remove('hidden');
@@ -573,8 +712,8 @@
             document.getElementById('image-input').classList.add('active');
         }
 
-        if (currentApertureType === 'matrix') {
-            document.getElementById('matrix-input').classList.add('active');
+        if (currentApertureType === 'grid') {
+            document.getElementById('grid-input').classList.add('active');
         }
     }
 
@@ -592,6 +731,14 @@
 
     document.getElementById('num-electrons').addEventListener('input', function() {
         document.getElementById('electrons-val').textContent = parseInt(this.value).toLocaleString();
+    });
+
+    document.getElementById('gamma').addEventListener('input', function() {
+        document.getElementById('gamma-val').textContent = parseFloat(this.value).toFixed(2);
+    });
+
+    document.getElementById('diffraction-scale').addEventListener('input', function() {
+        document.getElementById('scale-val').textContent = parseFloat(this.value).toFixed(1);
     });
 
     document.getElementById('aperture-image').addEventListener('change', function(e) {
@@ -625,8 +772,10 @@
             screen_distance: parseFloat(document.getElementById('screen-distance').value),
             aperture_size: parseInt(document.getElementById('aperture-size').value),
             pixel_size: parseFloat(document.getElementById('pixel-size').value),
+            gamma: parseFloat(document.getElementById('gamma').value),
+            diffraction_scale: parseFloat(document.getElementById('diffraction-scale').value),
             custom_image: currentApertureType === 'image' ? customImageData : null,
-            matrix_data: currentApertureType === 'matrix' ? document.getElementById('matrix-data').value : null
+            grid_data: currentApertureType === 'grid' ? gridState : null
         };
 
         try {
@@ -651,6 +800,7 @@
                 document.getElementById('energy-info').textContent = data.energy + ' эВ';
                 document.getElementById('near-distance-info').textContent = data.screen_distance + ' м';
                 document.getElementById('electrons-info').textContent = data.num_electrons.toLocaleString();
+                document.getElementById('scale-info').textContent = data.diffraction_scale.toFixed(1) + 'x';
 
                 document.getElementById('images-card').classList.remove('hidden');
                 document.getElementById('profiles-card').classList.remove('hidden');
