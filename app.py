@@ -88,7 +88,7 @@ class DiffractionSimulator:
             corrected = corrected / np.max(corrected)
         return corrected
 
-    def fresnel_diffraction(self, aperture, wavelength, z, pixel_size, num_electrons, gamma):
+    def fresnel_diffraction(self, aperture, wavelength, z, pixel_size, num_electrons, gamma_enabled, gamma):
         N = aperture.shape[0]
 
         if z <= 0:
@@ -132,14 +132,15 @@ class DiffractionSimulator:
         if np.max(intensity) > 0:
             intensity = intensity / np.max(intensity)
 
-        intensity = self.apply_gamma_correction(intensity, gamma)
+        if gamma_enabled:
+            intensity = self.apply_gamma_correction(intensity, gamma)
 
         if num_electrons > 0:
             intensity = self.add_quantum_noise(intensity, num_electrons)
 
         return intensity
 
-    def fraunhofer_diffraction(self, aperture, wavelength, pixel_size, num_electrons, gamma):
+    def fraunhofer_diffraction(self, aperture, wavelength, pixel_size, num_electrons, gamma_enabled, gamma):
         N = aperture.shape[0]
 
         pad_factor = 8
@@ -158,7 +159,8 @@ class DiffractionSimulator:
         if np.max(intensity) > 0:
             intensity = intensity / np.max(intensity)
 
-        intensity = self.apply_gamma_correction(intensity, gamma)
+        if gamma_enabled:
+            intensity = self.apply_gamma_correction(intensity, gamma)
 
         if num_electrons > 0:
             intensity = self.add_quantum_noise(intensity, num_electrons)
@@ -187,7 +189,7 @@ class DiffractionSimulator:
 
     def simulate(self, aperture_type, params, screen_distance,
                  energy_eV, num_electrons, aperture_size, pixel_size_um,
-                 gamma, custom_aperture=None, grid_data=None):
+                 gamma_enabled, gamma, custom_aperture=None, grid_data=None):
 
         wavelength = self.electron_wavelength(energy_eV)
         pixel_size = pixel_size_um * 1e-6
@@ -214,9 +216,9 @@ class DiffractionSimulator:
             aperture = self.create_single_slit(aperture_size, 10, pixel_size_um)
 
         near_pattern = self.fresnel_diffraction(aperture, wavelength, screen_distance,
-                                                pixel_size, num_electrons, gamma)
+                                                pixel_size, num_electrons, gamma_enabled, gamma)
         far_pattern = self.fraunhofer_diffraction(aperture, wavelength,
-                                                  pixel_size, num_electrons, gamma)
+                                                  pixel_size, num_electrons, gamma_enabled, gamma)
 
         return aperture, near_pattern, far_pattern, wavelength
 
@@ -260,6 +262,7 @@ def simulate():
     num_electrons = int(data.get('num_electrons', 10000))
     aperture_size = int(data.get('aperture_size', 256))
     pixel_size_um = float(data.get('pixel_size', 1.0))
+    gamma_enabled = data.get('gamma_enabled', False)
     gamma = float(data.get('gamma', 0.3))
 
     params = {
@@ -274,7 +277,7 @@ def simulate():
     aperture, near_pattern, far_pattern, wavelength = simulator.simulate(
         aperture_type, params, screen_distance,
         energy_eV, num_electrons, aperture_size, pixel_size_um,
-        gamma, custom_aperture, grid_data
+        gamma_enabled, gamma, custom_aperture, grid_data
     )
 
     field_size_um = aperture_size * pixel_size_um
