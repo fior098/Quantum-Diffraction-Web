@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import numpy as np
 from scipy.fft import fft2, fftshift, ifft2, ifftshift
-from scipy.ndimage import zoom
 import base64
 from io import BytesIO
 from PIL import Image
@@ -11,7 +10,6 @@ import matplotlib.pyplot as plt
 matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 
 app = Flask(__name__)
-
 
 class DiffractionSimulator:
     def __init__(self):
@@ -24,38 +22,38 @@ class DiffractionSimulator:
         wavelength = self.h / np.sqrt(2 * self.m_e * energy_J)
         return wavelength
 
-    def create_single_slit(self, size, slit_width, scale):
+    def create_single_slit(self, size, slit_width_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width * size / (2 * scale)))
+        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
         aperture[:, center - half_width:center + half_width] = 1
         return aperture
 
-    def create_double_slit(self, size, slit_width, separation, scale):
+    def create_double_slit(self, size, slit_width_um, separation_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width * size / (2 * scale)))
-        half_sep = int(separation * size / (2 * scale))
+        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
+        half_sep = int(separation_um / (2 * pixel_size_um))
         aperture[:, center - half_sep - half_width:center - half_sep + half_width] = 1
         aperture[:, center + half_sep - half_width:center + half_sep + half_width] = 1
         return aperture
 
-    def create_triple_slit(self, size, slit_width, separation, scale):
+    def create_triple_slit(self, size, slit_width_um, separation_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width * size / (2 * scale)))
-        sep = int(separation * size / scale)
+        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
+        sep = int(separation_um / pixel_size_um)
         aperture[:, center - half_width:center + half_width] = 1
         aperture[:, center - sep - half_width:center - sep + half_width] = 1
         aperture[:, center + sep - half_width:center + sep + half_width] = 1
         return aperture
 
-    def create_circular_aperture(self, size, radius, scale):
+    def create_circular_aperture(self, size, radius_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
         y, x = np.ogrid[:size, :size]
-        r = radius * size / scale
-        mask = (x - center)**2 + (y - center)**2 <= r**2
+        r_pixels = radius_um / pixel_size_um
+        mask = (x - center)**2 + (y - center)**2 <= r_pixels**2
         aperture[mask] = 1
         return aperture
 
@@ -189,31 +187,31 @@ class DiffractionSimulator:
 
     def simulate(self, aperture_type, params, screen_distance,
                  energy_eV, num_electrons, aperture_size, pixel_size_um,
-                 gamma, diffraction_scale, custom_aperture=None, grid_data=None):
+                 gamma, custom_aperture=None, grid_data=None):
 
         wavelength = self.electron_wavelength(energy_eV)
         pixel_size = pixel_size_um * 1e-6
 
         if aperture_type == 'single':
-            aperture = self.create_single_slit(aperture_size, params.get('slit_width', 0.05), diffraction_scale)
+            aperture = self.create_single_slit(aperture_size, params.get('slit_width_um', 10), pixel_size_um)
         elif aperture_type == 'double':
             aperture = self.create_double_slit(aperture_size,
-                                               params.get('slit_width', 0.02),
-                                               params.get('separation', 0.1),
-                                               diffraction_scale)
+                                               params.get('slit_width_um', 10),
+                                               params.get('separation_um', 25),
+                                               pixel_size_um)
         elif aperture_type == 'triple':
             aperture = self.create_triple_slit(aperture_size,
-                                               params.get('slit_width', 0.02),
-                                               params.get('separation', 0.08),
-                                               diffraction_scale)
+                                               params.get('slit_width_um', 10),
+                                               params.get('separation_um', 25),
+                                               pixel_size_um)
         elif aperture_type == 'circle':
-            aperture = self.create_circular_aperture(aperture_size, params.get('radius', 0.1), diffraction_scale)
+            aperture = self.create_circular_aperture(aperture_size, params.get('radius_um', 20), pixel_size_um)
         elif aperture_type == 'image' and custom_aperture:
             aperture = self.create_from_image(custom_aperture, aperture_size)
         elif aperture_type == 'grid' and grid_data:
             aperture = self.create_from_grid(grid_data, aperture_size)
         else:
-            aperture = self.create_single_slit(aperture_size, 0.05, diffraction_scale)
+            aperture = self.create_single_slit(aperture_size, 10, pixel_size_um)
 
         near_pattern = self.fresnel_diffraction(aperture, wavelength, screen_distance,
                                                 pixel_size, num_electrons, gamma)
@@ -222,16 +220,15 @@ class DiffractionSimulator:
 
         return aperture, near_pattern, far_pattern, wavelength
 
-
 simulator = DiffractionSimulator()
 
-
-def array_to_base64(arr, cmap='hot', title=''):
+def array_to_base64(arr, field_size_um, cmap='hot', title=''):
     fig, ax = plt.subplots(figsize=(6, 6))
-    im = ax.imshow(arr, cmap=cmap, origin='lower')
+    extent = [-field_size_um/2, field_size_um/2, -field_size_um/2, field_size_um/2]
+    im = ax.imshow(arr, cmap=cmap, origin='lower', extent=extent)
     ax.set_title(title, fontsize=14, color='white', fontweight='bold')
-    ax.set_xlabel('Позиция X (пиксели)', color='white', fontsize=10)
-    ax.set_ylabel('Позиция Y (пиксели)', color='white', fontsize=10)
+    ax.set_xlabel('X (мкм)', color='white', fontsize=10)
+    ax.set_ylabel('Y (мкм)', color='white', fontsize=10)
     ax.tick_params(colors='white')
     fig.patch.set_facecolor('#1a1a2e')
     ax.set_facecolor('#1a1a2e')
@@ -249,39 +246,9 @@ def array_to_base64(arr, cmap='hot', title=''):
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
-
-def create_1d_profile(pattern, title=''):
-    fig, ax = plt.subplots(figsize=(8, 3))
-    center = pattern.shape[0] // 2
-    profile = pattern[center, :]
-    x_pixels = np.arange(len(profile))
-
-    ax.plot(x_pixels, profile, color='#00d4ff', linewidth=1.5)
-    ax.fill_between(x_pixels, profile, alpha=0.3, color='#00d4ff')
-    ax.set_title(title, fontsize=12, color='white', fontweight='bold')
-    ax.set_xlabel('Позиция (пиксели)', color='white', fontsize=10)
-    ax.set_ylabel('Интенсивность (отн. ед.)', color='white', fontsize=10)
-    ax.set_facecolor('#1a1a2e')
-    fig.patch.set_facecolor('#1a1a2e')
-    ax.tick_params(colors='white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.grid(True, alpha=0.2, color='white')
-
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight',
-                facecolor='#1a1a2e', edgecolor='none', dpi=100)
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode('utf-8')
-
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/simulate', methods=['POST'])
 def simulate():
@@ -294,12 +261,11 @@ def simulate():
     aperture_size = int(data.get('aperture_size', 256))
     pixel_size_um = float(data.get('pixel_size', 1.0))
     gamma = float(data.get('gamma', 0.3))
-    diffraction_scale = float(data.get('diffraction_scale', 1.0))
 
     params = {
-        'slit_width': float(data.get('slit_width', 0.05)),
-        'separation': float(data.get('separation', 0.1)),
-        'radius': float(data.get('radius', 0.1))
+        'slit_width_um': float(data.get('slit_width_um', 10)),
+        'separation_um': float(data.get('separation_um', 25)),
+        'radius_um': float(data.get('radius_um', 20))
     }
 
     custom_aperture = data.get('custom_image', None)
@@ -308,32 +274,29 @@ def simulate():
     aperture, near_pattern, far_pattern, wavelength = simulator.simulate(
         aperture_type, params, screen_distance,
         energy_eV, num_electrons, aperture_size, pixel_size_um,
-        gamma, diffraction_scale, custom_aperture, grid_data
+        gamma, custom_aperture, grid_data
     )
+
+    field_size_um = aperture_size * pixel_size_um
 
     if screen_distance <= 0:
         near_title = 'Плоскость апертуры (z = 0)'
     else:
         near_title = f'Дифракция Френеля (z = {screen_distance} м)'
 
-    aperture_img = array_to_base64(aperture, cmap='gray', title='Апертура (щель)')
-    near_img = array_to_base64(near_pattern, cmap='hot', title=near_title)
-    far_img = array_to_base64(far_pattern, cmap='hot', title='Дифракция Фраунгофера (дальняя зона)')
-
-    near_profile = create_1d_profile(near_pattern, 'Профиль интенсивности - ближняя зона')
-    far_profile = create_1d_profile(far_pattern, 'Профиль интенсивности - дальняя зона')
+    aperture_img = array_to_base64(aperture, field_size_um, cmap='gray', title='Апертура (щель)')
+    near_img = array_to_base64(near_pattern, field_size_um, cmap='hot', title=near_title)
+    far_img = array_to_base64(far_pattern, field_size_um, cmap='hot', title='Дифракция Фраунгофера (дальняя зона)')
 
     return jsonify({
         'success': True,
         'aperture': aperture_img,
         'near_pattern': near_img,
         'far_pattern': far_img,
-        'near_profile': near_profile,
-        'far_profile': far_profile,
         'wavelength': wavelength * 1e12,
-        'wavelength_nm': wavelength * 1e9
+        'wavelength_nm': wavelength * 1e9,
+        'field_size_um': field_size_um
     })
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

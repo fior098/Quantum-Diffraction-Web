@@ -201,17 +201,6 @@
             font-size: 0.9em;
         }
 
-        .profiles-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .profile-container img {
-            width: 100%;
-            border-radius: 10px;
-        }
-
         .info-panel {
             background: rgba(0, 212, 255, 0.1);
             border-radius: 10px;
@@ -420,10 +409,6 @@
             .images-grid {
                 grid-template-columns: 1fr;
             }
-
-            .profiles-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
@@ -449,22 +434,22 @@
 
             <div class="params-section" id="slit-params">
                 <div class="form-group">
-                    <label>Ширина щели (отн. единицы): <span id="slit-width-val">0.05</span></label>
-                    <input type="range" id="slit-width" min="0.01" max="0.2" step="0.01" value="0.05">
+                    <label>Ширина щели (мкм): <span id="slit-width-val">10.0</span></label>
+                    <input type="range" id="slit-width" min="1" max="100" step="1" value="10">
                 </div>
             </div>
 
             <div class="params-section hidden" id="double-params">
                 <div class="form-group">
-                    <label>Расстояние между щелями: <span id="separation-val">0.10</span></label>
-                    <input type="range" id="separation" min="0.05" max="0.3" step="0.01" value="0.1">
+                    <label>Расстояние между щелями (мкм): <span id="separation-val">25</span></label>
+                    <input type="range" id="separation" min="5" max="150" step="1" value="25">
                 </div>
             </div>
 
             <div class="params-section hidden" id="circle-params">
                 <div class="form-group">
-                    <label>Радиус отверстия: <span id="radius-val">0.10</span></label>
-                    <input type="range" id="radius" min="0.02" max="0.3" step="0.01" value="0.1">
+                    <label>Радиус отверстия (мкм): <span id="radius-val">20</span></label>
+                    <input type="range" id="radius" min="2" max="100" step="1" value="20">
                 </div>
             </div>
 
@@ -496,12 +481,6 @@
 
             <hr class="section-divider">
             <div class="section-title">Параметры дифракции</div>
-
-            <div class="form-group">
-                <label>Масштаб дифракции (порядки): <span id="scale-val">1.0</span></label>
-                <input type="range" id="diffraction-scale" min="1" max="10" step="0.5" value="1">
-                <div class="note">Больше = больше светлых и тёмных полос</div>
-            </div>
 
             <div class="form-group">
                 <label>Контраст (гамма): <span id="gamma-val">0.30</span></label>
@@ -578,18 +557,6 @@
                     </div>
                 </div>
 
-                <div class="result-card hidden" id="profiles-card">
-                    <h3 class="result-title">Профили интенсивности</h3>
-                    <div class="profiles-grid">
-                        <div class="profile-container">
-                            <img id="near-profile" src="" alt="Профиль ближней зоны">
-                        </div>
-                        <div class="profile-container">
-                            <img id="far-profile" src="" alt="Профиль дальней зоны">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="result-card hidden" id="info-card">
                     <h3 class="result-title">Информация о симуляции</h3>
                     <div class="info-panel">
@@ -610,8 +577,8 @@
                             <span class="info-value" id="electrons-info">-</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Масштаб дифракции:</span>
-                            <span class="info-value" id="scale-info">-</span>
+                            <span class="info-label">Размер поля:</span>
+                            <span class="info-value" id="field-size-info">-</span>
                         </div>
                     </div>
                 </div>
@@ -665,19 +632,6 @@
         cells.forEach(cell => cell.classList.toggle('active'));
     }
 
-    function updateGridDisplay() {
-        const cells = document.querySelectorAll('.grid-cell');
-        cells.forEach(cell => {
-            const row = parseInt(cell.dataset.row);
-            const col = parseInt(cell.dataset.col);
-            if (gridState[row][col] === 1) {
-                cell.classList.add('active');
-            } else {
-                cell.classList.remove('active');
-            }
-        });
-    }
-
     initGrid();
 
     document.querySelectorAll('.aperture-btn').forEach(btn => {
@@ -699,34 +653,30 @@
         if (['single', 'double', 'triple'].includes(currentApertureType)) {
             document.getElementById('slit-params').classList.remove('hidden');
         }
-
         if (['double', 'triple'].includes(currentApertureType)) {
             document.getElementById('double-params').classList.remove('hidden');
         }
-
         if (currentApertureType === 'circle') {
             document.getElementById('circle-params').classList.remove('hidden');
         }
-
         if (currentApertureType === 'image') {
             document.getElementById('image-input').classList.add('active');
         }
-
         if (currentApertureType === 'grid') {
             document.getElementById('grid-input').classList.add('active');
         }
     }
 
     document.getElementById('slit-width').addEventListener('input', function() {
-        document.getElementById('slit-width-val').textContent = parseFloat(this.value).toFixed(2);
+        document.getElementById('slit-width-val').textContent = parseFloat(this.value).toFixed(1);
     });
 
     document.getElementById('separation').addEventListener('input', function() {
-        document.getElementById('separation-val').textContent = parseFloat(this.value).toFixed(2);
+        document.getElementById('separation-val').textContent = parseFloat(this.value).toFixed(0);
     });
 
     document.getElementById('radius').addEventListener('input', function() {
-        document.getElementById('radius-val').textContent = parseFloat(this.value).toFixed(2);
+        document.getElementById('radius-val').textContent = parseFloat(this.value).toFixed(0);
     });
 
     document.getElementById('num-electrons').addEventListener('input', function() {
@@ -735,10 +685,6 @@
 
     document.getElementById('gamma').addEventListener('input', function() {
         document.getElementById('gamma-val').textContent = parseFloat(this.value).toFixed(2);
-    });
-
-    document.getElementById('diffraction-scale').addEventListener('input', function() {
-        document.getElementById('scale-val').textContent = parseFloat(this.value).toFixed(1);
     });
 
     document.getElementById('aperture-image').addEventListener('change', function(e) {
@@ -764,16 +710,15 @@
 
         const data = {
             aperture_type: currentApertureType,
-            slit_width: parseFloat(document.getElementById('slit-width').value),
-            separation: parseFloat(document.getElementById('separation').value),
-            radius: parseFloat(document.getElementById('radius').value),
+            slit_width_um: parseFloat(document.getElementById('slit-width').value),
+            separation_um: parseFloat(document.getElementById('separation').value),
+            radius_um: parseFloat(document.getElementById('radius').value),
             energy: parseFloat(document.getElementById('energy').value),
             num_electrons: parseInt(document.getElementById('num-electrons').value),
             screen_distance: parseFloat(document.getElementById('screen-distance').value),
             aperture_size: parseInt(document.getElementById('aperture-size').value),
             pixel_size: parseFloat(document.getElementById('pixel-size').value),
             gamma: parseFloat(document.getElementById('gamma').value),
-            diffraction_scale: parseFloat(document.getElementById('diffraction-scale').value),
             custom_image: currentApertureType === 'image' ? customImageData : null,
             grid_data: currentApertureType === 'grid' ? gridState : null
         };
@@ -781,9 +726,7 @@
         try {
             const response = await fetch('/simulate', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
 
@@ -793,17 +736,14 @@
                 document.getElementById('aperture-img').src = 'data:image/png;base64,' + result.aperture;
                 document.getElementById('near-img').src = 'data:image/png;base64,' + result.near_pattern;
                 document.getElementById('far-img').src = 'data:image/png;base64,' + result.far_pattern;
-                document.getElementById('near-profile').src = 'data:image/png;base64,' + result.near_profile;
-                document.getElementById('far-profile').src = 'data:image/png;base64,' + result.far_profile;
 
-                document.getElementById('wavelength-info').textContent = result.wavelength_nm.toExponential(2) + ' нм';
+                document.getElementById('wavelength-info').textContent = result.wavelength_nm.toExponential(3) + ' нм';
                 document.getElementById('energy-info').textContent = data.energy + ' эВ';
                 document.getElementById('near-distance-info').textContent = data.screen_distance + ' м';
                 document.getElementById('electrons-info').textContent = data.num_electrons.toLocaleString();
-                document.getElementById('scale-info').textContent = data.diffraction_scale.toFixed(1) + 'x';
+                document.getElementById('field-size-info').textContent = result.field_size_um.toFixed(1) + ' мкм';
 
                 document.getElementById('images-card').classList.remove('hidden');
-                document.getElementById('profiles-card').classList.remove('hidden');
                 document.getElementById('info-card').classList.remove('hidden');
             }
         } catch (error) {
