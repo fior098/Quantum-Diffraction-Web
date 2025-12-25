@@ -1,9 +1,8 @@
 @echo off
-echo Installing dependencies...
-pip install flask numpy scipy matplotlib pillow
-echo.
-echo Starting Diffraction Simulator...
-echo Open browser at http://localhost:5000
-echo.
+cd /d "%~dp0"
+if not exist "templates" mkdir templates
+if not exist "static" mkdir static
+pip install flask numpy pillow
+start http://127.0.0.1:5000
 python app.py
 pause

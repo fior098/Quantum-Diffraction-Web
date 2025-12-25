@@ -1,317 +1,284 @@
 from flask import Flask, render_template, request, jsonify
 import numpy as np
-from scipy.fft import fft2, fftshift, ifft2, ifftshift
-import base64
-from io import BytesIO
 from PIL import Image
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-matplotlib.rcParams['font.family'] = 'DejaVu Sans'
+import base64
+import io
 
 app = Flask(__name__)
 
-class DiffractionSimulator:
-    def __init__(self):
-        self.h = 6.626e-34
-        self.m_e = 9.109e-31
-        self.e = 1.602e-19
-        self.default_energy_eV = 150
+def создать_одиночную_щель(размер, ширина):
+    апертура = np.zeros((размер, размер))
+    центр = размер // 2
+    полуширина = ширина // 2
+    апертура[:, центр - полуширина:центр + полуширина] = 1.0
+    return апертура
 
-    def electron_wavelength(self, energy_eV):
-        energy_J = energy_eV * self.e
-        return self.h / np.sqrt(2 * self.m_e * energy_J)
+def создать_двойную_щель(размер, ширина, разделение):
+    апертура = np.zeros((размер, размер))
+    центр = размер // 2
+    полуширина = ширина // 2
+    полуразделение = разделение // 2
+    апертура[:, центр - полуразделение - полуширина:центр - полуразделение + полуширина] = 1.0
+    апертура[:, центр + полуразделение - полуширина:центр + полуразделение + полуширина] = 1.0
+    return апертура
 
-    def create_single_slit(self, size, slit_width_pixels):
-        aperture = np.zeros((size, size))
-        center = size // 2
-        half_width = max(1, slit_width_pixels // 2)
-        aperture[:, center - half_width:center + half_width] = 1
-        return aperture
+def создать_тройную_щель(размер, ширина, разделение):
+    апертура = np.zeros((размер, размер))
+    центр = размер // 2
+    полуширина = ширина // 2
+    апертура[:, центр - полуширина:центр + полуширина] = 1.0
+    апертура[:, центр - разделение - полуширина:центр - разделение + полуширина] = 1.0
+    апертура[:, центр + разделение - полуширина:центр + разделение + полуширина] = 1.0
+    return апертура
 
-    def create_double_slit(self, size, slit_width_pixels, separation_pixels):
-        aperture = np.zeros((size, size))
-        center = size // 2
-        half_width = max(1, slit_width_pixels // 2)
-        half_sep = separation_pixels // 2
-        left_center = center - half_sep
-        aperture[:, left_center - half_width:left_center + half_width] = 1
-        right_center = center + half_sep
-        aperture[:, right_center - half_width:right_center + half_width] = 1
-        return aperture
+def создать_круглое_отверстие(размер, радиус):
+    апертура = np.zeros((размер, размер))
+    центр = размер // 2
+    y, x = np.ogrid[:размер, :размер]
+    маска = (x - центр)**2 + (y - центр)**2 <= радиус**2
+    апертура[маска] = 1.0
+    return апертура
 
-    def create_triple_slit(self, size, slit_width_pixels, separation_pixels):
-        aperture = np.zeros((size, size))
-        center = size // 2
-        half_width = max(1, slit_width_pixels // 2)
-        aperture[:, center - half_width:center + half_width] = 1
-        aperture[:, center - separation_pixels - half_width:center - separation_pixels + half_width] = 1
-        aperture[:, center + separation_pixels - half_width:center + separation_pixels + half_width] = 1
-        return aperture
+def создать_апертуру_из_изображения(данные_изображения, размер):
+    try:
+        if ',' in данные_изображения:
+            данные_изображения = данные_изображения.split(',')[1]
+        байты_изображения = base64.b64decode(данные_изображения)
+        изображение = Image.open(io.BytesIO(байты_изображения)).convert('L')
+        изображение = изображение.resize((размер, размер), Image.LANCZOS)
+        апертура = np.array(изображение) / 255.0
+        порог = 0.5
+        апертура = (апертура > порог).astype(float)
+        return апертура
+    except Exception as e:
+        print(f"Ошибка загрузки изображения: {e}")
+        return создать_одиночную_щель(размер, 20)
 
-    def create_circular_aperture(self, size, radius_pixels):
-        aperture = np.zeros((size, size))
-        center = size // 2
-        y, x = np.ogrid[:size, :size]
-        mask = (x - center)**2 + (y - center)**2 <= radius_pixels**2
-        aperture[mask] = 1
-        return aperture
+def создать_апертуру_из_матрицы(данные_матрицы, размер):
+    try:
+        матрица = np.array(данные_матрицы, dtype=float)
+        if матрица.size == 0:
+            return создать_одиночную_щель(размер, 20)
+        масштаб_y = размер // матрица.shape[0]
+        масштаб_x = размер // матрица.shape[1]
+        апертура = np.kron(матрица, np.ones((масштаб_y, масштаб_x)))
+        if апертура.shape[0] != размер or апертура.shape[1] != размер:
+            новая_апертура = np.zeros((размер, размер))
+            мин_y = min(размер, апертура.shape[0])
+            мин_x = min(размер, апертура.shape[1])
+            новая_апертура[:мин_y, :мин_x] = апертура[:мин_y, :мин_x]
+            апертура = новая_апертура
+        return апертура
+    except Exception as e:
+        print(f"Ошибка создания апертуры из матрицы: {e}")
+        return создать_одиночную_щель(размер, 20)
 
-    def create_from_image(self, image_data, size):
-        img_data = base64.b64decode(image_data.split(',')[1])
-        img = Image.open(BytesIO(img_data)).convert('L')
-        img = img.resize((size, size))
-        aperture = np.array(img) / 255.0
-        return (aperture > 0.5).astype(float)
+def дифракция_френеля(апертура, длина_волны, расстояние, размер_пикселя):
+    размер = апертура.shape[0]
+    k = 2 * np.pi / длина_волны
 
-    def create_from_grid(self, grid_data, size):
-        grid = np.array(grid_data, dtype=float)
-        grid_size = grid.shape[0]
-        aperture = np.zeros((size, size))
-        cell_size = size // grid_size
-        for i in range(grid_size):
-            for j in range(grid_size):
-                if grid[i, j] == 1:
-                    aperture[i*cell_size:(i+1)*cell_size, j*cell_size:(j+1)*cell_size] = 1
-        return aperture
+    fx = np.fft.fftfreq(размер, размер_пикселя)
+    fy = np.fft.fftfreq(размер, размер_пикселя)
+    FX, FY = np.meshgrid(fx, fy)
 
-    def fresnel_diffraction(self, aperture, wavelength, z, pixel_size):
-        N = aperture.shape[0]
+    число_френеля = (размер_пикселя * размер / 2)**2 / (длина_волны * расстояние)
 
-        if z <= 0:
-            return aperture.copy()
+    if число_френеля > 0.1:
+        аргумент = 1 - (длина_волны * FX)**2 - (длина_волны * FY)**2
+        аргумент = np.clip(аргумент, 0, None)
+        H = np.exp(1j * k * расстояние * np.sqrt(аргумент))
+        H[аргумент <= 0] = 0
+    else:
+        H = np.exp(-1j * np.pi * длина_волны * расстояние * (FX**2 + FY**2))
 
-        k = 2 * np.pi / wavelength
-        L = N * pixel_size
+    U0 = np.fft.fft2(апертура)
+    U = np.fft.ifft2(U0 * np.fft.fftshift(H))
 
-        x = np.linspace(-L/2, L/2, N)
-        y = np.linspace(-L/2, L/2, N)
-        X1, Y1 = np.meshgrid(x, y)
+    интенсивность = np.abs(U)**2
 
-        L_out = wavelength * z / pixel_size
-        x2 = np.linspace(-L_out/2, L_out/2, N)
-        y2 = np.linspace(-L_out/2, L_out/2, N)
-        X2, Y2 = np.meshgrid(x2, y2)
+    if np.max(интенсивность) > 0:
+        интенсивность = интенсивность / np.max(интенсивность)
 
-        c = np.exp(1j * k * z) * np.exp(1j * k / (2 * z) * (X2**2 + Y2**2)) / (1j * wavelength * z)
+    return интенсивность
 
-        U0 = aperture * np.exp(1j * k / (2 * z) * (X1**2 + Y1**2))
+def дифракция_фраунгофера(апертура, длина_волны, расстояние, размер_пикселя):
+    размер = апертура.shape[0]
 
-        U = c * fftshift(fft2(ifftshift(U0))) * pixel_size**2
+    дополненный_размер = размер * 2
+    дополненная = np.zeros((дополненный_размер, дополненный_размер))
+    начало = дополненный_размер // 4
+    дополненная[начало:начало+размер, начало:начало+размер] = апертура
 
-        intensity = np.abs(U)**2
+    фурье = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(дополненная)))
+    интенсивность = np.abs(фурье)**2
 
-        return intensity
+    центр = дополненный_размер // 2
+    половина = размер // 2
+    интенсивность = интенсивность[центр-половина:центр+половина, центр-половина:центр+половина]
 
-    def fraunhofer_diffraction(self, aperture):
-        N = aperture.shape[0]
+    if np.max(интенсивность) > 0:
+        интенсивность = интенсивность / np.max(интенсивность)
 
-        pad_factor = 4
-        pad_size = N * pad_factor
-        padded = np.zeros((pad_size, pad_size))
-        offset = (pad_size - N) // 2
-        padded[offset:offset+N, offset:offset+N] = aperture
+    return интенсивность
 
-        diffracted = fftshift(fft2(ifftshift(padded)))
-        intensity_full = np.abs(diffracted)**2
+def применить_статистику_электронов(интенсивность, количество_электронов):
+    вероятность = интенсивность.copy()
+    сумма = np.sum(вероятность)
+    if сумма > 0:
+        вероятность = вероятность / сумма
+    else:
+        вероятность = np.ones_like(вероятность) / вероятность.size
 
-        center = pad_size // 2
-        half_N = N // 2
-        intensity = intensity_full[center-half_N:center+half_N, center-half_N:center+half_N]
+    плоская_вероятность = вероятность.flatten()
 
-        return intensity
+    индексы = np.random.choice(len(плоская_вероятность), size=количество_электронов, p=плоская_вероятность)
 
-    def add_quantum_noise(self, intensity, num_electrons):
-        if num_electrons <= 0:
-            return intensity
+    результат = np.zeros_like(плоская_вероятность)
+    np.add.at(результат, индексы, 1)
 
-        prob = intensity.copy()
-        prob_sum = np.sum(prob)
-        if prob_sum == 0:
-            return intensity
+    результат = результат.reshape(интенсивность.shape)
 
-        prob = prob / prob_sum
-        indices = np.random.choice(len(prob.flatten()), size=num_electrons, p=prob.flatten())
+    сигма = 1.5
+    from scipy.ndimage import gaussian_filter
+    результат = gaussian_filter(результат, sigma=сигма)
 
-        result = np.zeros_like(intensity)
-        np.add.at(result.ravel(), indices, 1)
-        return result
+    if np.max(результат) > 0:
+        результат = результат / np.max(результат)
 
-    def normalize(self, arr):
-        if np.max(arr) > 0:
-            return arr / np.max(arr)
-        return arr
+    return результат
 
-    def apply_gamma(self, arr, gamma):
-        return np.power(arr, gamma)
+def применить_статистику_электронов_простая(интенсивность, количество_электронов):
+    вероятность = интенсивность.copy()
+    сумма = np.sum(вероятность)
+    if сумма > 0:
+        вероятность = вероятность / сумма
+    else:
+        вероятность = np.ones_like(вероятность) / вероятность.size
 
-    def simulate(self, aperture_type, params, screen_distance_m,
-                 num_electrons, grid_size, gamma_enabled, gamma,
-                 custom_image=None, grid_data=None):
+    плоская_вероятность = вероятность.flatten()
+    индексы = np.random.choice(len(плоская_вероятность), size=количество_электронов, p=плоская_вероятность)
 
-        wavelength = self.electron_wavelength(self.default_energy_eV)
+    результат = np.zeros_like(плоская_вероятность)
+    np.add.at(результат, индексы, 1)
+    результат = результат.reshape(интенсивность.shape)
 
-        char_size_m = params.get('char_size_m', 10e-6)
+    размер_ядра = 3
+    ядро = np.ones((размер_ядра, размер_ядра)) / (размер_ядра**2)
+    from scipy.signal import convolve2d
+    результат = convolve2d(результат, ядро, mode='same', boundary='wrap')
 
-        field_size_m = char_size_m * 20
-        pixel_size_m = field_size_m / grid_size
+    if np.max(результат) > 0:
+        результат = результат / np.max(результат)
 
-        slit_width_px = max(2, int(params.get('slit_width_m', 10e-6) / pixel_size_m))
-        separation_px = max(4, int(params.get('separation_m', 25e-6) / pixel_size_m))
-        radius_px = max(2, int(params.get('radius_m', 20e-6) / pixel_size_m))
+    return результат
 
-        if aperture_type == 'single':
-            aperture = self.create_single_slit(grid_size, slit_width_px)
-        elif aperture_type == 'double':
-            aperture = self.create_double_slit(grid_size, slit_width_px, separation_px)
-        elif aperture_type == 'triple':
-            aperture = self.create_triple_slit(grid_size, slit_width_px, separation_px)
-        elif aperture_type == 'circle':
-            aperture = self.create_circular_aperture(grid_size, radius_px)
-        elif aperture_type == 'image' and custom_image:
-            aperture = self.create_from_image(custom_image, grid_size)
-        elif aperture_type == 'grid' and grid_data:
-            aperture = self.create_from_grid(grid_data, grid_size)
-        else:
-            aperture = self.create_single_slit(grid_size, slit_width_px)
+def массив_в_base64_png(массив):
+    нормализованный = массив.copy()
+    if np.max(нормализованный) > 0:
+        нормализованный = нормализованный / np.max(нормализованный)
 
-        fresnel = self.fresnel_diffraction(aperture, wavelength, screen_distance_m, pixel_size_m)
-        fraunhofer = self.fraunhofer_diffraction(aperture)
+    uint8_массив = (нормализованный * 255).astype(np.uint8)
+    изображение = Image.fromarray(uint8_массив, mode='L')
 
-        fresnel = self.normalize(fresnel)
-        fraunhofer = self.normalize(fraunhofer)
+    буфер = io.BytesIO()
+    изображение.save(буфер, format='PNG')
+    строка_изображения = base64.b64encode(буфер.getvalue()).decode('utf-8')
 
-        if gamma_enabled:
-            fresnel = self.apply_gamma(fresnel, gamma)
-            fraunhofer = self.apply_gamma(fraunhofer, gamma)
-            fresnel = self.normalize(fresnel)
-            fraunhofer = self.normalize(fraunhofer)
+    return f"data:image/png;base64,{строка_изображения}"
 
-        fresnel = self.add_quantum_noise(fresnel, num_electrons)
-        fraunhofer = self.add_quantum_noise(fraunhofer, num_electrons)
-
-        fresnel = self.normalize(fresnel)
-        fraunhofer = self.normalize(fraunhofer)
-
-        fresnel_number = (char_size_m ** 2) / (wavelength * screen_distance_m) if screen_distance_m > 0 else float('inf')
-
-        return {
-            'aperture': aperture,
-            'fresnel': fresnel,
-            'fraunhofer': fraunhofer,
-            'wavelength_m': wavelength,
-            'field_size_m': field_size_m,
-            'pixel_size_m': pixel_size_m,
-            'fresnel_number': fresnel_number
-        }
-
-
-simulator = DiffractionSimulator()
-
-
-def array_to_base64(arr, title='', cmap='hot'):
-    fig, ax = plt.subplots(figsize=(5, 5))
-    im = ax.imshow(arr, cmap=cmap, origin='lower', vmin=0, vmax=1)
-    ax.set_title(title, fontsize=12, color='white', fontweight='bold')
-    ax.axis('off')
-    fig.patch.set_facecolor('#1a1a2e')
-
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight',
-                facecolor='#1a1a2e', edgecolor='none', dpi=120, pad_inches=0.1)
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode('utf-8')
-
-
-def convert_to_meters(value, unit):
-    multipliers = {'nm': 1e-9, 'um': 1e-6, 'mm': 1e-3, 'cm': 1e-2, 'm': 1}
-    return value * multipliers.get(unit, 1)
-
+def применить_гамма_коррекцию(интенсивность, гамма=0.5):
+    результат = np.power(интенсивность, гамма)
+    if np.max(результат) > 0:
+        результат = результат / np.max(результат)
+    return результат
 
 @app.route('/')
-def index():
+def главная():
     return render_template('index.html')
 
+@app.route('/calculate', methods=['POST'])
+def рассчитать():
+    try:
+        данные = request.get_json()
 
-@app.route('/simulate', methods=['POST'])
-def simulate():
-    data = request.json
+        тип_апертуры = данные.get('aperture_type', 'single')
+        расстояние_экрана = float(данные.get('screen_distance', 1.0))
+        количество_электронов = int(данные.get('num_electrons', 100000))
+        ширина_щели = int(данные.get('slit_width', 20))
+        разделение_щелей = int(данные.get('slit_separation', 60))
+        радиус_круга = int(данные.get('circle_radius', 40))
+        длина_волны = float(данные.get('wavelength', 5e-12))
+        размер_пикселя = float(данные.get('pixel_size', 1e-7))
+        данные_изображения = данные.get('image_data', None)
+        данные_матрицы = данные.get('matrix_data', None)
 
-    aperture_type = data.get('aperture_type', 'single')
-    grid_size = int(data.get('grid_size', 256))
-    num_electrons = int(data.get('num_electrons', 10000))
-    gamma_enabled = data.get('gamma_enabled', False)
-    gamma = float(data.get('gamma', 0.3))
+        размер = 512
 
-    slit_width_m = convert_to_meters(
-        float(data.get('slit_width', 10)),
-        data.get('slit_width_unit', 'um')
-    )
-    separation_m = convert_to_meters(
-        float(data.get('separation', 25)),
-        data.get('separation_unit', 'um')
-    )
-    radius_m = convert_to_meters(
-        float(data.get('radius', 20)),
-        data.get('radius_unit', 'um')
-    )
-    screen_distance_m = convert_to_meters(
-        float(data.get('screen_distance', 0.1)),
-        data.get('distance_unit', 'm')
-    )
+        количество_электронов = max(10000, min(1000000, количество_электронов))
+        расстояние_экрана = max(0.001, min(100.0, расстояние_экрана))
 
-    if aperture_type == 'single':
-        char_size_m = slit_width_m
-    elif aperture_type in ['double', 'triple']:
-        char_size_m = separation_m
-    elif aperture_type == 'circle':
-        char_size_m = radius_m * 2
-    else:
-        char_size_m = 10e-6
+        if тип_апертуры == 'single':
+            апертура = создать_одиночную_щель(размер, ширина_щели)
+        elif тип_апертуры == 'double':
+            апертура = создать_двойную_щель(размер, ширина_щели, разделение_щелей)
+        elif тип_апертуры == 'triple':
+            апертура = создать_тройную_щель(размер, ширина_щели, разделение_щелей)
+        elif тип_апертуры == 'circle':
+            апертура = создать_круглое_отверстие(размер, радиус_круга)
+        elif тип_апертуры == 'image' and данные_изображения:
+            апертура = создать_апертуру_из_изображения(данные_изображения, размер)
+        elif тип_апертуры == 'matrix' and данные_матрицы:
+            апертура = создать_апертуру_из_матрицы(данные_матрицы, размер)
+        else:
+            апертура = создать_одиночную_щель(размер, ширина_щели)
 
-    params = {
-        'slit_width_m': slit_width_m,
-        'separation_m': separation_m,
-        'radius_m': radius_m,
-        'char_size_m': char_size_m
-    }
+        интенсивность_френеля = дифракция_френеля(апертура, длина_волны, расстояние_экрана, размер_пикселя)
+        интенсивность_фраунгофера = дифракция_фраунгофера(апертура, длина_волны, расстояние_экрана * 1000, размер_пикселя)
 
-    custom_image = data.get('custom_image')
-    grid_data = data.get('grid_data')
+        try:
+            from scipy.ndimage import gaussian_filter
+            френель_с_электронами = применить_статистику_электронов(интенсивность_френеля, количество_электронов)
+            фраунгофер_с_электронами = применить_статистику_электронов(интенсивность_фраунгофера, количество_электронов)
+        except ImportError:
+            френель_с_электронами = применить_статистику_электронов_простая(интенсивность_френеля, количество_электронов)
+            фраунгофер_с_электронами = применить_статистику_электронов_простая(интенсивность_фраунгофера, количество_электронов)
 
-    result = simulator.simulate(
-        aperture_type, params, screen_distance_m,
-        num_electrons, grid_size, gamma_enabled, gamma,
-        custom_image, grid_data
-    )
+        френель_для_отображения = применить_гамма_коррекцию(френель_с_электронами, 0.4)
+        фраунгофер_для_отображения = применить_гамма_коррекцию(фраунгофер_с_электронами, 0.4)
 
-    if screen_distance_m <= 0:
-        fresnel_title = 'z = 0'
-    else:
-        fresnel_title = f'z = {screen_distance_m:.2g} m'
+        изображение_апертуры = массив_в_base64_png(апертура)
+        изображение_френеля = массив_в_base64_png(френель_для_отображения)
+        изображение_фраунгофера = массив_в_base64_png(фраунгофер_для_отображения)
 
-    aperture_img = array_to_base64(result['aperture'], 'Aperture', 'gray')
-    fresnel_img = array_to_base64(result['fresnel'], fresnel_title, 'hot')
-    fraunhofer_img = array_to_base64(result['fraunhofer'], 'Fraunhofer', 'hot')
+        return jsonify({
+            'success': True,
+            'aperture': изображение_апертуры,
+            'fresnel': изображение_френеля,
+            'fraunhofer': изображение_фраунгофера,
+            'fresnel_number': float((размер_пикселя * размер / 2)**2 / (длина_волны * расстояние_экрана)),
+            'info': {
+                'wavelength': длина_волны,
+                'distance': расстояние_экрана,
+                'electrons': количество_электронов
+            }
+        })
 
-    wavelength_nm = result['wavelength_m'] * 1e9
-    field_size_um = result['field_size_m'] * 1e6
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
-    fn = result['fresnel_number']
-    fresnel_number_str = f'{fn:.2e}' if fn < 1000 and fn != float('inf') else ('∞' if fn == float('inf') else f'{fn:.0f}')
-
-    return jsonify({
-        'success': True,
-        'aperture': aperture_img,
-        'fresnel': fresnel_img,
-        'fraunhofer': fraunhofer_img,
-        'wavelength_nm': wavelength_nm,
-        'field_size_um': field_size_um,
-        'fresnel_number': fresnel_number_str,
-        'energy_eV': simulator.default_energy_eV
-    })
-
+@app.route('/health')
+def проверка_здоровья():
+    return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import os
+    if not os.path.exists('templates'):
+        os.makedirs('templates')
+    if not os.path.exists('static'):
+        os.makedirs('static')
+    app.run(debug=True, host='127.0.0.1', port=5000)

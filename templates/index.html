@@ -3,673 +3,896 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дифракция электронов</title>
+    <title>Симулятор дифракции - Френель и Фраунгофер</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, #0f0f23, #1a1a2e, #16213e);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             color: #e0e0e0;
             padding: 20px;
         }
 
-        .container { max-width: 1400px; margin: 0 auto; }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
         h1 {
             text-align: center;
-            color: #00d4ff;
-            margin-bottom: 25px;
-            font-size: 2em;
-            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .main-layout {
+        .main-content {
             display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 25px;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
         }
 
-        .panel {
-            background: rgba(26, 26, 46, 0.95);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            height: fit-content;
         }
 
-        .panel-title {
+        .control-section {
+            margin-bottom: 25px;
+        }
+
+        .control-section h3 {
             color: #00d4ff;
-            font-size: 1.2em;
             margin-bottom: 15px;
-            padding-bottom: 10px;
+            font-size: 1.1em;
             border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 8px;
         }
 
-        .form-group { margin-bottom: 18px; }
+        .control-group {
+            margin-bottom: 15px;
+        }
 
-        label {
+        .control-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             color: #b0b0b0;
             font-size: 0.9em;
-        }
-
-        input[type="number"], select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            border-radius: 6px;
-            background: rgba(15, 15, 35, 0.9);
-            color: #e0e0e0;
-            font-size: 0.95em;
-        }
-
-        input[type="number"]:focus, select:focus {
-            outline: none;
-            border-color: #00d4ff;
         }
 
         input[type="range"] {
             width: 100%;
             height: 6px;
-            -webkit-appearance: none;
-            background: linear-gradient(90deg, #00d4ff, #ff6b6b);
             border-radius: 3px;
+            background: #2a2a4a;
+            outline: none;
+            -webkit-appearance: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 18px;
             height: 18px;
-            background: #00d4ff;
             border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
             cursor: pointer;
         }
 
-        .input-row {
-            display: flex;
-            gap: 8px;
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #e0e0e0;
+            font-size: 14px;
         }
 
-        .input-row input { flex: 1; }
-        .input-row select { width: 75px; flex-shrink: 0; }
+        select {
+            cursor: pointer;
+        }
 
-        .btn-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+        .value-display {
+            text-align: right;
+            color: #00d4ff;
+            font-size: 0.85em;
+            margin-top: 3px;
         }
 
         .btn {
-            padding: 10px 6px;
-            border: 2px solid rgba(0, 212, 255, 0.3);
-            border-radius: 6px;
-            background: transparent;
-            color: #e0e0e0;
-            cursor: pointer;
-            font-size: 0.85em;
-            transition: all 0.2s;
-        }
-
-        .btn:hover {
-            border-color: #00d4ff;
-            background: rgba(0, 212, 255, 0.1);
-        }
-
-        .btn.active {
-            border-color: #00d4ff;
-            background: rgba(0, 212, 255, 0.2);
-            color: #00d4ff;
-        }
-
-        .simulate-btn {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            padding: 15px;
             border: none;
-            border-radius: 8px;
-            color: #0f0f23;
+            border-radius: 10px;
             font-size: 1.1em;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 15px;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
         }
 
-        .simulate-btn:hover {
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
         }
 
-        .simulate-btn:disabled {
+        .btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
 
-        .results {
-            display: flex;
-            flex-direction: column;
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .results-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
         }
 
-        .images-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .image-box {
+        .result-card h3 {
             text-align: center;
-        }
-
-        .image-box img {
-            width: 100%;
-            border-radius: 8px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
-        }
-
-        .image-box .label {
-            margin-top: 8px;
-            color: #888;
-            font-size: 0.9em;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 12px;
-            background: rgba(0, 212, 255, 0.1);
-            border-radius: 6px;
-        }
-
-        .info-item .label { color: #888; }
-        .info-item .value { color: #00d4ff; font-weight: bold; }
-
-        .hidden { display: none !important; }
-
-        .note {
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 4px;
-            font-style: italic;
-        }
-
-        .divider {
-            margin: 15px 0;
-            border: none;
-            border-top: 1px solid rgba(0, 212, 255, 0.2);
-        }
-
-        .section-title {
+            margin-bottom: 15px;
             color: #00d4ff;
-            font-size: 0.95em;
-            margin-bottom: 12px;
-            opacity: 0.8;
         }
 
-        .checkbox-row {
+        .result-card.fresnel h3 {
+            color: #ff6b6b;
+        }
+
+        .result-card.fraunhofer h3 {
+            color: #4ecdc4;
+        }
+
+        .image-container {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
         }
 
-        .checkbox-row input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #00d4ff;
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
-        .checkbox-row label { margin: 0; cursor: pointer; }
+        .placeholder {
+            color: #555;
+            font-size: 0.9em;
+            text-align: center;
+            padding: 20px;
+        }
 
-        .gamma-slider { display: none; margin-top: 10px; }
-        .gamma-slider.active { display: block; }
+        .aperture-options {
+            display: none;
+        }
+
+        .aperture-options.active {
+            display: block;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 10px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            background: rgba(0, 212, 255, 0.3);
+        }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 60px;
+            padding: 20px;
         }
 
-        .loading.active { display: block; }
+        .loading.active {
+            display: block;
+        }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(0, 212, 255, 0.2);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 212, 255, 0.3);
             border-top-color: #00d4ff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 10px;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .placeholder {
-            text-align: center;
-            padding: 80px 20px;
-            color: #555;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .placeholder-icon {
-            font-size: 3.5em;
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            font-size: 0.85em;
+        }
+
+        .info-panel p {
+            margin: 5px 0;
+        }
+
+        .info-panel span {
             color: #00d4ff;
-            opacity: 0.4;
-            margin-bottom: 15px;
         }
 
-        /* Сетка для рисования */
-        .grid-container { display: none; margin-top: 10px; }
-        .grid-container.active { display: block; }
-
-        .aperture-grid {
+        .matrix-grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
             gap: 2px;
-            background: rgba(0, 212, 255, 0.2);
-            padding: 2px;
-            border-radius: 6px;
-            max-width: 280px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
 
-        .grid-cell {
+        .matrix-cell {
             aspect-ratio: 1;
-            background: #1a1a2e;
-            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: #2a2a4a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             cursor: pointer;
+            transition: all 0.2s ease;
             border-radius: 2px;
         }
 
-        .grid-cell:hover { border-color: #00d4ff; }
-        .grid-cell.active { background: #fff; }
-
-        .grid-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            max-width: 280px;
-        }
-
-        .grid-buttons button {
-            flex: 1;
-            padding: 6px;
-            font-size: 0.8em;
-        }
-
-        /* Загрузка файла */
-        .file-section { display: none; margin-top: 10px; }
-        .file-section.active { display: block; }
-
-        .file-label {
-            display: block;
-            padding: 12px;
-            background: rgba(0, 212, 255, 0.1);
-            border: 2px dashed rgba(0, 212, 255, 0.3);
-            border-radius: 6px;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .file-label:hover {
+        .matrix-cell:hover {
             border-color: #00d4ff;
-            background: rgba(0, 212, 255, 0.15);
         }
 
-        .file-input { display: none; }
+        .matrix-cell.active {
+            background: #ffffff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
 
-        @media (max-width: 1000px) {
-            .main-layout { grid-template-columns: 1fr; }
-            .images-row { grid-template-columns: 1fr; }
-            .info-grid { grid-template-columns: 1fr; }
+        .matrix-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .matrix-buttons .btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.85em;
+        }
+
+        .theory-section {
+            margin-top: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .theory-section h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theory-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .theory-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .theory-card.fresnel-theory {
+            border-left-color: #ff6b6b;
+        }
+
+        .theory-card.fraunhofer-theory {
+            border-left-color: #4ecdc4;
+        }
+
+        .theory-card.general-theory {
+            border-left-color: #7b2cbf;
+        }
+
+        .theory-card h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .theory-card.fresnel-theory h3 {
+            color: #ff6b6b;
+        }
+
+        .theory-card.fraunhofer-theory h3 {
+            color: #4ecdc4;
+        }
+
+        .theory-card.general-theory h3 {
+            color: #7b2cbf;
+        }
+
+        .theory-card p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+            color: #b0b0b0;
+        }
+
+        .theory-card ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .theory-card li {
+            margin-bottom: 5px;
+            color: #b0b0b0;
+        }
+
+        .formula {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 15px 0;
+            color: #00d4ff;
+            font-size: 1.1em;
+        }
+
+        .highlight {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .results-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .results-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .theory-cards {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🔬 Симулятор дифракции электронов</h1>
+    <h1>Симулятор дифракции электронов</h1>
 
-    <div class="main-layout">
-        <!-- Панель управления -->
-        <div class="panel">
-            <h2 class="panel-title">Параметры</h2>
-
-            <!-- Тип апертуры -->
-            <div class="form-group">
-                <label>Тип апертуры:</label>
-                <div class="btn-grid" id="aperture-btns">
-                    <button class="btn active" data-type="single">1 щель</button>
-                    <button class="btn" data-type="double">2 щели</button>
-                    <button class="btn" data-type="triple">3 щели</button>
-                    <button class="btn" data-type="circle">Круг</button>
-                    <button class="btn" data-type="grid">Сетка</button>
-                    <button class="btn" data-type="image">Фото</button>
-                </div>
-            </div>
-
-            <!-- Параметры щели -->
-            <div class="form-group" id="slit-params">
-                <label>Ширина щели:</label>
-                <div class="input-row">
-                    <input type="number" id="slit-width" value="10" min="0.1" step="0.1">
-                    <select id="slit-width-unit">
-                        <option value="nm">нм</option>
-                        <option value="um" selected>мкм</option>
-                        <option value="mm">мм</option>
+    <div class="main-content">
+        <div class="control-panel">
+            <div class="control-section">
+                <h3>Тип апертуры</h3>
+                <div class="control-group">
+                    <select id="типАпертуры" onchange="обновитьОпцииАпертуры()">
+                        <option value="одиночная">Одиночная щель</option>
+                        <option value="двойная">Двойная щель</option>
+                        <option value="тройная">Тройная щель</option>
+                        <option value="круг">Круглое отверстие</option>
+                        <option value="изображение">Из изображения</option>
+                        <option value="матрица">Из матрицы</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Расстояние между щелями -->
-            <div class="form-group hidden" id="separation-params">
-                <label>Расстояние между щелями:</label>
-                <div class="input-row">
-                    <input type="number" id="separation" value="25" min="0.1" step="0.1">
-                    <select id="separation-unit">
-                        <option value="nm">нм</option>
-                        <option value="um" selected>мкм</option>
-                        <option value="mm">мм</option>
-                    </select>
+                <div id="опцииЩелей" class="aperture-options active">
+                    <div class="control-group">
+                        <label>Ширина щели (пиксели)</label>
+                        <input type="range" id="ширинаЩели" min="2" max="100" value="20" oninput="обновитьЗначение('ширинаЩели')">
+                        <div class="value-display" id="ширинаЩелиЗначение">20</div>
+                    </div>
+                    <div class="control-group" id="группаРазделения">
+                        <label>Расстояние между щелями (пиксели)</label>
+                        <input type="range" id="расстояниеЩелей" min="20" max="200" value="60" oninput="обновитьЗначение('расстояниеЩелей')">
+                        <div class="value-display" id="расстояниеЩелейЗначение">60</div>
+                    </div>
+                </div>
+
+                <div id="опцииКруга" class="aperture-options">
+                    <div class="control-group">
+                        <label>Радиус круга (пиксели)</label>
+                        <input type="range" id="радиусКруга" min="5" max="150" value="40" oninput="обновитьЗначение('радиусКруга')">
+                        <div class="value-display" id="радиусКругаЗначение">40</div>
+                    </div>
+                </div>
+
+                <div id="опцииИзображения" class="aperture-options">
+                    <div class="control-group">
+                        <label>Загрузить изображение (белый = щель)</label>
+                        <div class="file-input-wrapper">
+                            <span class="file-input-label" id="меткаФайла">Нажмите для выбора изображения</span>
+                            <input type="file" id="вводИзображения" accept="image/*" onchange="обработатьЗагрузкуИзображения(event)">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="опцииМатрицы" class="aperture-options">
+                    <div class="control-group">
+                        <label>Нажмите на ячейки для создания апертуры</label>
+                        <div class="matrix-grid" id="сеткаМатрицы"></div>
+                        <div class="matrix-buttons">
+                            <button class="btn btn-secondary" onclick="очиститьМатрицу()">Очистить</button>
+                            <button class="btn btn-secondary" onclick="заполнитьВсё()">Заполнить всё</button>
+                            <button class="btn btn-secondary" onclick="инвертировать()">Инвертировать</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Радиус круга -->
-            <div class="form-group hidden" id="circle-params">
-                <label>Радиус отверстия:</label>
-                <div class="input-row">
-                    <input type="number" id="radius" value="20" min="0.1" step="0.1">
-                    <select id="radius-unit">
-                        <option value="nm">нм</option>
-                        <option value="um" selected>мкм</option>
-                        <option value="mm">мм</option>
-                    </select>
+            <div class="control-section">
+                <h3>Физические параметры</h3>
+                <div class="control-group">
+                    <label>Расстояние до экрана (м)</label>
+                    <input type="range" id="расстояниеЭкрана" min="0.01" max="10" step="0.01" value="1" oninput="обновитьЗначение('расстояниеЭкрана')">
+                    <div class="value-display" id="расстояниеЭкранаЗначение">1.00 м</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Количество электронов</label>
+                    <input type="range" id="количествоЭлектронов" min="10000" max="1000000" step="10000" value="100000" oninput="обновитьЗначение('количествоЭлектронов')">
+                    <div class="value-display" id="количествоЭлектроновЗначение">100 000</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Длина волны (пм)</label>
+                    <input type="range" id="длинаВолны" min="1" max="100" value="5" oninput="обновитьЗначение('длинаВолны')">
+                    <div class="value-display" id="длинаВолныЗначение">5 пм</div>
                 </div>
             </div>
 
-            <!-- Сетка для рисования -->
-            <div class="grid-container" id="grid-section">
-                <label>Нарисуйте апертуру:</label>
-                <div class="aperture-grid" id="aperture-grid"></div>
-                <div class="grid-buttons">
-                    <button class="btn" onclick="clearGrid()">Очистить</button>
-                    <button class="btn" onclick="fillGrid()">Заполнить</button>
-                    <button class="btn" onclick="invertGrid()">Инверсия</button>
-                </div>
+            <button class="btn btn-primary" id="кнопкаРасчёта" onclick="рассчитать()">
+                Рассчитать дифракцию
+            </button>
+
+            <div class="loading" id="загрузка">
+                <div class="spinner"></div>
+                <p>Расчёт дифракционных картин...</p>
             </div>
 
-            <!-- Загрузка изображения -->
-            <div class="file-section" id="file-section">
-                <label class="file-label" id="file-label">
-                    Выберите изображение (белое = щель)
-                    <input type="file" class="file-input" id="file-input" accept="image/*">
-                </label>
+            <div class="info-panel" id="панельИнфо" style="display: none;">
+                <p>Число Френеля: <span id="числоФренеля">-</span></p>
+                <p>Электронов: <span id="счётчикЭлектронов">-</span></p>
+                <p>Расстояние: <span id="информацияРасстояния">-</span></p>
             </div>
-
-            <hr class="divider">
-            <div class="section-title">Физические параметры</div>
-
-            <!-- Расстояние до экрана -->
-            <div class="form-group">
-                <label>Расстояние до экрана:</label>
-                <div class="input-row">
-                    <input type="number" id="screen-distance" value="0.1" min="0" step="0.001">
-                    <select id="distance-unit">
-                        <option value="mm">мм</option>
-                        <option value="cm">см</option>
-                        <option value="m" selected>м</option>
-                    </select>
-                </div>
-                <div class="note">При z=0 показывается апертура</div>
-            </div>
-
-            <!-- Количество электронов -->
-            <div class="form-group">
-                <label>Электронов: <span id="electrons-val">10 000</span></label>
-                <input type="range" id="num-electrons" min="100" max="100000" step="100" value="10000">
-            </div>
-
-            <!-- Размер сетки -->
-            <div class="form-group">
-                <label>Разрешение:</label>
-                <select id="grid-size">
-                    <option value="128">128 × 128</option>
-                    <option value="256" selected>256 × 256</option>
-                    <option value="512">512 × 512</option>
-                </select>
-            </div>
-
-            <hr class="divider">
-            <div class="section-title">Отображение</div>
-
-            <!-- Гамма-коррекция -->
-            <div class="form-group">
-                <div class="checkbox-row">
-                    <input type="checkbox" id="gamma-enabled">
-                    <label for="gamma-enabled">Гамма-коррекция (контраст)</label>
-                </div>
-                <div class="gamma-slider" id="gamma-slider">
-                    <label>Гамма: <span id="gamma-val">0.30</span></label>
-                    <input type="range" id="gamma" min="0.1" max="1.0" step="0.05" value="0.3">
-                </div>
-            </div>
-
-            <button class="simulate-btn" id="simulate-btn">Запустить симуляцию</button>
         </div>
 
-        <!-- Результаты -->
-        <div class="results">
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Вычисление...</p>
+        <div class="results-panel">
+            <div class="result-card">
+                <h3>Апертура</h3>
+                <div class="image-container">
+                    <img id="изображениеАпертуры" style="display: none;">
+                    <span class="placeholder" id="заглушкаАпертуры">Апертура появится здесь</span>
+                </div>
             </div>
 
-            <div id="results-content">
-                <div class="placeholder" id="placeholder">
-                    <div class="placeholder-icon">〰️</div>
-                    <h3>Настройте параметры и запустите симуляцию</h3>
+            <div class="result-card fresnel">
+                <h3>Дифракция Френеля (ближняя зона)</h3>
+                <div class="image-container">
+                    <img id="изображениеФренеля" style="display: none;">
+                    <span class="placeholder" id="заглушкаФренеля">Картина Френеля появится здесь</span>
                 </div>
+            </div>
 
-                <div class="panel hidden" id="images-panel">
-                    <h3 class="panel-title">Дифракционные картины</h3>
-                    <div class="images-row">
-                        <div class="image-box">
-                            <img id="img-aperture" src="" alt="">
-                            <div class="label">Апертура</div>
-                        </div>
-                        <div class="image-box">
-                            <img id="img-fresnel" src="" alt="">
-                            <div class="label">Френель (ближняя зона)</div>
-                        </div>
-                        <div class="image-box">
-                            <img id="img-fraunhofer" src="" alt="">
-                            <div class="label">Фраунгофер (дальняя зона)</div>
-                        </div>
-                    </div>
+            <div class="result-card fraunhofer">
+                <h3>Дифракция Фраунгофера (дальняя зона)</h3>
+                <div class="image-container">
+                    <img id="изображениеФраунгофера" style="display: none;">
+                    <span class="placeholder" id="заглушкаФраунгофера">Картина Фраунгофера появится здесь</span>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <div class="panel hidden" id="info-panel">
-                    <h3 class="panel-title">Информация</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="label">Длина волны λ:</span>
-                            <span class="value" id="info-wavelength">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Энергия электрона:</span>
-                            <span class="value" id="info-energy">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Размер поля:</span>
-                            <span class="value" id="info-field">-</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="label">Число Френеля N<sub>F</sub>:</span>
-                            <span class="value" id="info-fresnel">-</span>
-                        </div>
-                    </div>
-                </div>
+    <div class="theory-section">
+        <h2>Теория дифракции</h2>
+
+        <div class="theory-cards">
+            <div class="theory-card general-theory">
+                <h3>Что такое дифракция?</h3>
+                <p>
+                    <span class="highlight">Дифракция</span> — это явление огибания волнами препятствий
+                    или отклонения волн при прохождении через отверстия.
+                </p>
+                <p>
+                    Дифракция наблюдается, когда размеры препятствия или отверстия сравнимы
+                    с длиной волны. Это явление доказывает волновую природу света и электронов.
+                </p>
+                <p>
+                    <span class="highlight">Принцип Гюйгенса-Френеля:</span> каждая точка волнового фронта
+                    является источником вторичных сферических волн, а результирующее поле —
+                    суперпозиция этих волн.
+                </p>
+            </div>
+
+            <div class="theory-card fresnel-theory">
+                <h3>Дифракция Френеля</h3>
+                <p>
+                    <span class="highlight">Дифракция Френеля</span> (ближняя зона) наблюдается,
+                    когда источник или экран находятся на конечном расстоянии от препятствия.
+                </p>
+                <div class="formula">F = a² / (λ × L) > 1</div>
+                <p>Где:</p>
+                <ul>
+                    <li><strong>F</strong> — число Френеля</li>
+                    <li><strong>a</strong> — характерный размер апертуры</li>
+                    <li><strong>λ</strong> — длина волны</li>
+                    <li><strong>L</strong> — расстояние до экрана</li>
+                </ul>
+                <p>
+                    В зоне Френеля дифракционная картина сложная и зависит от расстояния.
+                    Волновой фронт нельзя считать плоским.
+                </p>
+            </div>
+
+            <div class="theory-card fraunhofer-theory">
+                <h3>Дифракция Фраунгофера</h3>
+                <p>
+                    <span class="highlight">Дифракция Фраунгофера</span> (дальняя зона) наблюдается,
+                    когда и источник, и экран находятся на бесконечно большом расстоянии от препятствия.
+                </p>
+                <div class="formula">F = a² / (λ × L) << 1</div>
+                <p>
+                    В этом случае падающий и дифрагированный волновые фронты можно считать плоскими.
+                </p>
+                <p>
+                    <span class="highlight">Важное свойство:</span> дифракционная картина Фраунгофера
+                    является Фурье-образом функции пропускания апертуры!
+                </p>
+                <p>
+                    Это позволяет легко вычислять картину с помощью быстрого преобразования Фурье (БПФ).
+                </p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Дифракция электронов</h3>
+                <p>
+                    Электроны обладают волновыми свойствами. Их длина волны определяется
+                    формулой де Бройля:
+                </p>
+                <div class="formula">λ = h / p = h / (m × v)</div>
+                <p>Где:</p>
+                <ul>
+                    <li><strong>h</strong> — постоянная Планка</li>
+                    <li><strong>p</strong> — импульс электрона</li>
+                    <li><strong>m</strong> — масса электрона</li>
+                    <li><strong>v</strong> — скорость электрона</li>
+                </ul>
+                <p>
+                    Для электронов с энергией 100 кэВ длина волны составляет около 4 пикометров.
+                </p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Одиночная щель</h3>
+                <p>
+                    При дифракции на одиночной щели шириной <strong>b</strong> минимумы
+                    интенсивности наблюдаются при углах:
+                </p>
+                <div class="formula">sin(θ) = m × λ / b, m = ±1, ±2, ...</div>
+                <p>
+                    Центральный максимум в два раза шире боковых.
+                    Интенсивность боковых максимумов быстро убывает.
+                </p>
+                <p>
+                    <span class="highlight">Чем уже щель</span>, тем шире дифракционная картина
+                    (обратная зависимость).
+                </p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Двойная щель</h3>
+                <p>
+                    Двойная щель создаёт комбинацию дифракции и интерференции.
+                    Максимумы интерференции:
+                </p>
+                <div class="formula">d × sin(θ) = m × λ, m = 0, ±1, ±2, ...</div>
+                <p>Где <strong>d</strong> — расстояние между центрами щелей.</p>
+                <p>
+                    Дифракционная картина от одиночной щели модулирует
+                    интерференционную картину от двух источников.
+                </p>
+                <p>
+                    <span class="highlight">Опыт Юнга</span> с двойной щелью исторически
+                    доказал волновую природу света.
+                </p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Круглое отверстие</h3>
+                <p>
+                    Дифракция на круглом отверстии создаёт характерную картину
+                    <span class="highlight">колец Эйри</span>.
+                </p>
+                <p>
+                    Угловой радиус первого тёмного кольца:
+                </p>
+                <div class="formula">sin(θ₁) ≈ 1.22 × λ / D</div>
+                <p>Где <strong>D</strong> — диаметр отверстия.</p>
+                <p>
+                    Этот критерий определяет разрешающую способность оптических инструментов
+                    (критерий Рэлея).
+                </p>
+            </div>
+
+            <div class="theory-card general-theory">
+                <h3>Статистика электронов</h3>
+                <p>
+                    В симуляторе учитывается квантовая природа электронов.
+                    Каждый электрон — отдельная частица, но распределение
+                    множества электронов формирует дифракционную картину.
+                </p>
+                <p>
+                    <span class="highlight">Вероятность попадания</span> электрона в точку экрана
+                    пропорциональна интенсивности волны в этой точке.
+                </p>
+                <p>
+                    При малом числе электронов картина "зернистая",
+                    при большом — становится непрерывной.
+                </p>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let currentType = 'single';
-    let customImage = null;
-    let gridState = Array(10).fill(null).map(() => Array(10).fill(0));
+    let загруженноеИзображение = null;
+    let матрица = [];
 
-    // Инициализация сетки
-    function initGrid() {
-        const grid = document.getElementById('aperture-grid');
-        grid.innerHTML = '';
-        for (let i = 0; i < 100; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.idx = i;
-            cell.addEventListener('click', () => {
-                const row = Math.floor(i / 10);
-                const col = i % 10;
-                gridState[row][col] = gridState[row][col] ? 0 : 1;
-                cell.classList.toggle('active');
-            });
-            grid.appendChild(cell);
+    function инициализироватьМатрицу() {
+        const сетка = document.getElementById('сеткаМатрицы');
+        сетка.innerHTML = '';
+        матрица = [];
+
+        for (let i = 0; i < 10; i++) {
+            матрица[i] = [];
+            for (let j = 0; j < 10; j++) {
+                матрица[i][j] = 0;
+                const ячейка = document.createElement('div');
+                ячейка.className = 'matrix-cell';
+                ячейка.dataset.row = i;
+                ячейка.dataset.col = j;
+                ячейка.onclick = function() {
+                    переключитьЯчейку(i, j, this);
+                };
+                сетка.appendChild(ячейка);
+            }
         }
     }
 
-    function clearGrid() {
-        gridState = Array(10).fill(null).map(() => Array(10).fill(0));
-        document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('active'));
+    function переключитьЯчейку(row, col, элемент) {
+        матрица[row][col] = матрица[row][col] === 0 ? 1 : 0;
+        элемент.classList.toggle('active');
     }
 
-    function fillGrid() {
-        gridState = Array(10).fill(null).map(() => Array(10).fill(1));
-        document.querySelectorAll('.grid-cell').forEach(c => c.classList.add('active'));
-    }
-
-    function invertGrid() {
-        gridState = gridState.map(row => row.map(v => v ? 0 : 1));
-        document.querySelectorAll('.grid-cell').forEach((c, i) => {
-            const row = Math.floor(i / 10);
-            const col = i % 10;
-            c.classList.toggle('active', gridState[row][col] === 1);
+    function очиститьМатрицу() {
+        const ячейки = document.querySelectorAll('.matrix-cell');
+        ячейки.forEach((ячейка, индекс) => {
+            const row = Math.floor(индекс / 10);
+            const col = индекс % 10;
+            матрица[row][col] = 0;
+            ячейка.classList.remove('active');
         });
     }
 
-    initGrid();
-
-    // Обработка кнопок апертуры
-    document.querySelectorAll('#aperture-btns .btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#aperture-btns .btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentType = btn.dataset.type;
-            updateVisibility();
+    function заполнитьВсё() {
+        const ячейки = document.querySelectorAll('.matrix-cell');
+        ячейки.forEach((ячейка, индекс) => {
+            const row = Math.floor(индекс / 10);
+            const col = индекс % 10;
+            матрица[row][col] = 1;
+            ячейка.classList.add('active');
         });
-    });
-
-    function updateVisibility() {
-        const isSlit = ['single', 'double', 'triple'].includes(currentType);
-        const isMultiSlit = ['double', 'triple'].includes(currentType);
-
-        document.getElementById('slit-params').classList.toggle('hidden', !isSlit);
-        document.getElementById('separation-params').classList.toggle('hidden', !isMultiSlit);
-        document.getElementById('circle-params').classList.toggle('hidden', currentType !== 'circle');
-        document.getElementById('grid-section').classList.toggle('active', currentType === 'grid');
-        document.getElementById('file-section').classList.toggle('active', currentType === 'image');
     }
 
-    // Гамма-слайдер
-    document.getElementById('gamma-enabled').addEventListener('change', function() {
-        document.getElementById('gamma-slider').classList.toggle('active', this.checked);
-    });
+    function инвертировать() {
+        const ячейки = document.querySelectorAll('.matrix-cell');
+        ячейки.forEach((ячейка, индекс) => {
+            const row = Math.floor(индекс / 10);
+            const col = индекс % 10;
+            матрица[row][col] = матрица[row][col] === 0 ? 1 : 0;
+            ячейка.classList.toggle('active');
+        });
+    }
 
-    // Обновление значений
-    document.getElementById('num-electrons').addEventListener('input', function() {
-        document.getElementById('electrons-val').textContent = parseInt(this.value).toLocaleString();
-    });
+    function обновитьЗначение(id) {
+        const элемент = document.getElementById(id);
+        const отображение = document.getElementById(id + 'Значение');
 
-    document.getElementById('gamma').addEventListener('input', function() {
-        document.getElementById('gamma-val').textContent = parseFloat(this.value).toFixed(2);
-    });
+        if (id === 'расстояниеЭкрана') {
+            отображение.textContent = parseFloat(элемент.value).toFixed(2) + ' м';
+        } else if (id === 'количествоЭлектронов') {
+            отображение.textContent = parseInt(элемент.value).toLocaleString('ru-RU');
+        } else if (id === 'длинаВолны') {
+            отображение.textContent = элемент.value + ' пм';
+        } else {
+            отображение.textContent = элемент.value;
+        }
+    }
 
-    // Загрузка файла
-    document.getElementById('file-input').addEventListener('change', function(e) {
-        const file = e.target.files[0];
+    function обновитьОпцииАпертуры() {
+        const типАпертуры = document.getElementById('типАпертуры').value;
+
+        document.querySelectorAll('.aperture-options').forEach(el => {
+            el.classList.remove('active');
+        });
+
+        if (типАпертуры === 'одиночная' || типАпертуры === 'двойная' || типАпертуры === 'тройная') {
+            document.getElementById('опцииЩелей').classList.add('active');
+            document.getElementById('группаРазделения').style.display =
+                типАпертуры === 'одиночная' ? 'none' : 'block';
+        } else if (типАпертуры === 'круг') {
+            document.getElementById('опцииКруга').classList.add('active');
+        } else if (типАпертуры === 'изображение') {
+            document.getElementById('опцииИзображения').classList.add('active');
+        } else if (типАпертуры === 'матрица') {
+            document.getElementById('опцииМатрицы').classList.add('active');
+        }
+    }
+
+    function обработатьЗагрузкуИзображения(event) {
+        const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                customImage = e.target.result;
-                document.getElementById('file-label').textContent = '✓ ' + file.name;
+            reader.onload = function(e) {
+                загруженноеИзображение = e.target.result;
+                document.getElementById('меткаФайла').textContent = file.name;
             };
             reader.readAsDataURL(file);
         }
-    });
+    }
 
-    // Симуляция
-    document.getElementById('simulate-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('simulate-btn');
-        const loading = document.getElementById('loading');
-        const placeholder = document.getElementById('placeholder');
+    async function рассчитать() {
+        const кнопка = document.getElementById('кнопкаРасчёта');
+        const загрузка = document.getElementById('загрузка');
 
-        btn.disabled = true;
-        loading.classList.add('active');
-        placeholder.classList.add('hidden');
+        кнопка.disabled = true;
+        загрузка.classList.add('active');
 
-        const data = {
-            aperture_type: currentType,
-            slit_width: parseFloat(document.getElementById('slit-width').value),
-            slit_width_unit: document.getElementById('slit-width-unit').value,
-            separation: parseFloat(document.getElementById('separation').value),
-            separation_unit: document.getElementById('separation-unit').value,
-            radius: parseFloat(document.getElementById('radius').value),
-            radius_unit: document.getElementById('radius-unit').value,
-            screen_distance: parseFloat(document.getElementById('screen-distance').value),
-            distance_unit: document.getElementById('distance-unit').value,
-            num_electrons: parseInt(document.getElementById('num-electrons').value),
-            grid_size: parseInt(document.getElementById('grid-size').value),
-            gamma_enabled: document.getElementById('gamma-enabled').checked,
-            gamma: parseFloat(document.getElementById('gamma').value),
-            custom_image: currentType === 'image' ? customImage : null,
-            grid_data: currentType === 'grid' ? gridState : null
+        const типАпертуры = document.getElementById('типАпертуры').value;
+
+        const типыСоответствия = {
+            'одиночная': 'single',
+            'двойная': 'double',
+            'тройная': 'triple',
+            'круг': 'circle',
+            'изображение': 'image',
+            'матрица': 'matrix'
+        };
+
+        const данные = {
+            aperture_type: типыСоответствия[типАпертуры],
+            screen_distance: parseFloat(document.getElementById('расстояниеЭкрана').value),
+            num_electrons: parseInt(document.getElementById('количествоЭлектронов').value),
+            slit_width: parseInt(document.getElementById('ширинаЩели').value),
+            slit_separation: parseInt(document.getElementById('расстояниеЩелей').value),
+            circle_radius: parseInt(document.getElementById('радиусКруга').value),
+            wavelength: parseFloat(document.getElementById('длинаВолны').value) * 1e-12,
+            pixel_size: 1e-7,
+            image_data: типАпертуры === 'изображение' ? загруженноеИзображение : null,
+            matrix_data: типАпертуры === 'матрица' ? матрица : null
         };
 
         try {
-            const response = await fetch('/simulate', {
+            const ответ = await fetch('/calculate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(данные)
             });
 
-            const result = await response.json();
+            const результат = await ответ.json();
 
-            if (result.success) {
-                document.getElementById('img-aperture').src = 'data:image/png;base64,' + result.aperture;
-                document.getElementById('img-fresnel').src = 'data:image/png;base64,' + result.fresnel;
-                document.getElementById('img-fraunhofer').src = 'data:image/png;base64,' + result.fraunhofer;
+            if (результат.success) {
+                показатьИзображение('изображениеАпертуры', 'заглушкаАпертуры', результат.aperture);
+                показатьИзображение('изображениеФренеля', 'заглушкаФренеля', результат.fresnel);
+                показатьИзображение('изображениеФраунгофера', 'заглушкаФраунгофера', результат.fraunhofer);
 
-                document.getElementById('info-wavelength').textContent = result.wavelength_nm.toFixed(4) + ' нм';
-                document.getElementById('info-energy').textContent = result.energy_eV + ' эВ';
-                document.getElementById('info-field').textContent = result.field_size_um.toFixed(1) + ' мкм';
-                document.getElementById('info-fresnel').textContent = result.fresnel_number;
-
-                document.getElementById('images-panel').classList.remove('hidden');
-                document.getElementById('info-panel').classList.remove('hidden');
+                document.getElementById('панельИнфо').style.display = 'block';
+                document.getElementById('числоФренеля').textContent = результат.fresnel_number.toExponential(2);
+                document.getElementById('счётчикЭлектронов').textContent = результат.info.electrons.toLocaleString('ru-RU');
+                document.getElementById('информацияРасстояния').textContent = результат.info.distance.toFixed(2) + ' м';
+            } else {
+                alert('Ошибка: ' + результат.error);
             }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Ошибка симуляции');
-        } finally {
-            btn.disabled = false;
-            loading.classList.remove('active');
+        } catch (ошибка) {
+            alert('Ошибка соединения: ' + ошибка.message);
         }
-    });
 
-    updateVisibility();
+        кнопка.disabled = false;
+        загрузка.classList.remove('active');
+    }
+
+    function показатьИзображение(imgId, placeholderId, src) {
+        const img = document.getElementById(imgId);
+        const заглушка = document.getElementById(placeholderId);
+
+        img.src = src;
+        img.style.display = 'block';
+        заглушка.style.display = 'none';
+    }
+
+    обновитьОпцииАпертуры();
+    инициализироватьМатрицу();
 </script>
 </body>
 </html>
