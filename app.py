@@ -13,16 +13,11 @@ matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 app = Flask(__name__)
 
 def wavelength_to_rgb(wavelength_nm):
-    """Преобразует длину волны (в нм) в RGB цвет для видимого спектра"""
-    # Для невидимого спектра используем условные цвета
     if wavelength_nm < 380:
-        # Ультрафиолет -> фиолетовый
         return (0.5, 0.0, 1.0)
     elif wavelength_nm > 750:
-        # Инфракрасный -> тёмно-красный
         return (0.5, 0.0, 0.0)
 
-    # Видимый спектр
     if 380 <= wavelength_nm < 440:
         r = -(wavelength_nm - 440) / (440 - 380)
         g = 0.0
@@ -43,12 +38,11 @@ def wavelength_to_rgb(wavelength_nm):
         r = 1.0
         g = -(wavelength_nm - 645) / (645 - 580)
         b = 0.0
-    else:  # 645-750
+    else:
         r = 1.0
         g = 0.0
         b = 0.0
 
-    # Уменьшение интенсивности на краях видимого спектра
     if 380 <= wavelength_nm < 420:
         factor = 0.3 + 0.7 * (wavelength_nm - 380) / (420 - 380)
     elif 700 < wavelength_nm <= 750:
@@ -58,13 +52,10 @@ def wavelength_to_rgb(wavelength_nm):
 
     return (r * factor, g * factor, b * factor)
 
-
 def create_wavelength_colormap(wavelength_nm):
-    """Создаёт цветовую карту от чёрного до цвета длины волны"""
     rgb = wavelength_to_rgb(wavelength_nm)
-    colors = [(0, 0, 0), rgb]  # от чёрного к цвету
+    colors = [(0, 0, 0), rgb]
     return LinearSegmentedColormap.from_list('wavelength', colors, N=256)
-
 
 class DiffractionSimulator:
     def __init__(self):
@@ -80,14 +71,19 @@ class DiffractionSimulator:
     def create_single_slit(self, size, slit_width_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
-        aperture[:, center - half_width:center + half_width] = 1
+        half_width_pixels = slit_width_um / (2 * pixel_size_um)
+        if half_width_pixels < 0.5:
+            aperture[:, center] = 1
+        else:
+            half_width = max(1, int(half_width_pixels))
+            aperture[:, center - half_width:center + half_width] = 1
         return aperture
 
     def create_double_slit(self, size, slit_width_um, separation_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
+        half_width_pixels = slit_width_um / (2 * pixel_size_um)
+        half_width = max(1, int(half_width_pixels)) if half_width_pixels >= 0.5 else 1
         half_sep = int(separation_um / (2 * pixel_size_um))
         aperture[:, center - half_sep - half_width:center - half_sep + half_width] = 1
         aperture[:, center + half_sep - half_width:center + half_sep + half_width] = 1
@@ -96,7 +92,8 @@ class DiffractionSimulator:
     def create_triple_slit(self, size, slit_width_um, separation_um, pixel_size_um):
         aperture = np.zeros((size, size))
         center = size // 2
-        half_width = max(1, int(slit_width_um / (2 * pixel_size_um)))
+        half_width_pixels = slit_width_um / (2 * pixel_size_um)
+        half_width = max(1, int(half_width_pixels)) if half_width_pixels >= 0.5 else 1
         sep = int(separation_um / pixel_size_um)
         aperture[:, center - half_width:center + half_width] = 1
         aperture[:, center - sep - half_width:center - sep + half_width] = 1
@@ -277,15 +274,12 @@ class DiffractionSimulator:
 
         return aperture, near_pattern, far_pattern, wavelength
 
-
 simulator = DiffractionSimulator()
-
 
 def array_to_base64(arr, field_size_um, wavelength_nm, cmap='hot', title='', use_wavelength_color=False):
     fig, ax = plt.subplots(figsize=(6, 6))
     extent = [-field_size_um/2, field_size_um/2, -field_size_um/2, field_size_um/2]
 
-    # Выбор цветовой карты
     if use_wavelength_color and cmap != 'gray':
         colormap = create_wavelength_colormap(wavelength_nm)
     else:
@@ -312,11 +306,9 @@ def array_to_base64(arr, field_size_um, wavelength_nm, cmap='hot', title='', use
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/simulate', methods=['POST'])
 def simulate():
@@ -355,7 +347,6 @@ def simulate():
     else:
         near_title = f'Дифракция Френеля (z = {screen_distance} м)'
 
-    # Получаем цвет для отображения в информации
     rgb = wavelength_to_rgb(wavelength_nm)
     color_hex = '#{:02x}{:02x}{:02x}'.format(
         int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)
@@ -382,6 +373,5 @@ def simulate():
         'color_hex': color_hex
     })
 
-
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)

@@ -479,6 +479,29 @@
             border: 1px solid #fff;
         }
 
+        .energy-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .energy-preset-btn {
+            padding: 4px 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            background: transparent;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s ease;
+        }
+
+        .energy-preset-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
         @media (max-width: 1200px) {
             .main-layout {
                 grid-template-columns: 1fr;
@@ -514,7 +537,6 @@
                 </div>
             </div>
 
-            <!-- Переключатель единиц измерения -->
             <div class="form-group">
                 <label>Единицы размера:</label>
                 <div class="unit-toggle">
@@ -527,11 +549,11 @@
                 <div class="form-group">
                     <label>Ширина щели (<span id="slit-unit">мкм</span>):</label>
                     <div class="input-with-unit">
-                        <input type="number" id="slit-width" value="10" min="0.1" step="0.1">
+                        <input type="number" id="slit-width" value="10" min="0.0001" step="any">
                         <span class="unit-label" id="slit-unit-label">мкм</span>
                     </div>
-                    <input type="range" id="slit-width-slider" min="0.1" max="100" step="0.1" value="10">
-                    <div class="note" id="slit-width-note">Диапазон: 0.1 - 100 мкм</div>
+                    <input type="range" id="slit-width-slider" min="0.0001" max="100" step="0.0001" value="10">
+                    <div class="note" id="slit-width-note">Диапазон: 0.0001 - 100 мкм (0.1 нм - 100 мкм)</div>
                 </div>
             </div>
 
@@ -539,10 +561,10 @@
                 <div class="form-group">
                     <label>Расстояние между щелями (<span id="sep-unit">мкм</span>):</label>
                     <div class="input-with-unit">
-                        <input type="number" id="separation" value="25" min="0.1" step="0.1">
+                        <input type="number" id="separation" value="25" min="0.0001" step="any">
                         <span class="unit-label" id="sep-unit-label">мкм</span>
                     </div>
-                    <input type="range" id="separation-slider" min="1" max="150" step="1" value="25">
+                    <input type="range" id="separation-slider" min="0.001" max="150" step="0.001" value="25">
                 </div>
             </div>
 
@@ -550,10 +572,10 @@
                 <div class="form-group">
                     <label>Радиус отверстия (<span id="radius-unit">мкм</span>):</label>
                     <div class="input-with-unit">
-                        <input type="number" id="radius" value="20" min="0.1" step="0.1">
+                        <input type="number" id="radius" value="20" min="0.0001" step="any">
                         <span class="unit-label" id="radius-unit-label">мкм</span>
                     </div>
-                    <input type="range" id="radius-slider" min="0.1" max="100" step="0.1" value="20">
+                    <input type="range" id="radius-slider" min="0.0001" max="100" step="0.0001" value="20">
                 </div>
             </div>
 
@@ -610,8 +632,16 @@
 
             <div class="form-group">
                 <label>Энергия электронов (эВ):</label>
-                <input type="number" id="energy" value="100" min="0.0001" max="100000" step="any">
-                <div class="note">Пример: 0.00074 эВ → λ ≈ 450 нм (синий)</div>
+                <input type="number" id="energy" value="0.000005" min="1e-10" max="100000" step="any">
+                <div class="energy-presets">
+                    <button class="energy-preset-btn" data-energy="0.0000094" data-color="#8B00FF">400нм (фиол)</button>
+                    <button class="energy-preset-btn" data-energy="0.0000060" data-color="#0000FF">450нм (синий)</button>
+                    <button class="energy-preset-btn" data-energy="0.0000050" data-color="#00FF00">550нм (зелён)</button>
+                    <button class="energy-preset-btn" data-energy="0.0000041" data-color="#FFFF00">600нм (жёлт)</button>
+                    <button class="energy-preset-btn" data-energy="0.0000031" data-color="#FF0000">700нм (красн)</button>
+                    <button class="energy-preset-btn" data-energy="100">100 эВ</button>
+                </div>
+                <div class="note">Видимый свет: ~3e-6 - 9e-6 эВ (700-400 нм)</div>
             </div>
 
             <div class="form-group">
@@ -720,7 +750,7 @@
     let currentApertureType = 'single';
     let customImageData = null;
     let gridState = Array(10).fill(null).map(() => Array(10).fill(0));
-    let currentUnit = 'um'; // 'um' или 'nm'
+    let currentUnit = 'um';
 
     function initGrid() {
         const grid = document.getElementById('aperture-grid');
@@ -764,33 +794,34 @@
 
     initGrid();
 
-    // Обработка переключения единиц измерения
+    document.querySelectorAll('.energy-preset-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('energy').value = this.dataset.energy;
+        });
+    });
+
     document.querySelectorAll('.unit-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-
             const newUnit = this.dataset.unit;
             const unitLabel = newUnit === 'um' ? 'мкм' : 'нм';
 
-            // Конвертируем значения при переключении
             const conversionFactor = newUnit === 'nm' && currentUnit === 'um' ? 1000 :
                 newUnit === 'um' && currentUnit === 'nm' ? 0.001 : 1;
 
-            // Обновляем поля ввода
             if (conversionFactor !== 1) {
                 const slitWidth = document.getElementById('slit-width');
                 const separation = document.getElementById('separation');
                 const radius = document.getElementById('radius');
                 const pixelSize = document.getElementById('pixel-size');
 
-                slitWidth.value = (parseFloat(slitWidth.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
-                separation.value = (parseFloat(separation.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
-                radius.value = (parseFloat(radius.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
-                pixelSize.value = (parseFloat(pixelSize.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
+                slitWidth.value = (parseFloat(slitWidth.value) * conversionFactor);
+                separation.value = (parseFloat(separation.value) * conversionFactor);
+                radius.value = (parseFloat(radius.value) * conversionFactor);
+                pixelSize.value = (parseFloat(pixelSize.value) * conversionFactor);
             }
 
-            // Обновляем подписи
             document.getElementById('slit-unit').textContent = unitLabel;
             document.getElementById('slit-unit-label').textContent = unitLabel;
             document.getElementById('sep-unit').textContent = unitLabel;
@@ -800,27 +831,22 @@
             document.getElementById('pixel-unit').textContent = unitLabel;
             document.getElementById('pixel-unit-label').textContent = unitLabel;
 
-            // Обновляем диапазоны слайдеров
             if (newUnit === 'nm') {
                 document.getElementById('slit-width-slider').min = 0.1;
-                document.getElementById('slit-width-slider').max = 10000;
+                document.getElementById('slit-width-slider').max = 100000;
                 document.getElementById('slit-width-slider').step = 0.1;
-                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.1 - 10000 нм';
-
+                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.1 - 100000 нм';
                 document.getElementById('separation-slider').min = 0.1;
-                document.getElementById('separation-slider').max = 50000;
-
+                document.getElementById('separation-slider').max = 150000;
                 document.getElementById('radius-slider').min = 0.1;
-                document.getElementById('radius-slider').max = 50000;
+                document.getElementById('radius-slider').max = 100000;
             } else {
                 document.getElementById('slit-width-slider').min = 0.0001;
                 document.getElementById('slit-width-slider').max = 100;
                 document.getElementById('slit-width-slider').step = 0.0001;
-                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.0001 - 100 мкм';
-
-                document.getElementById('separation-slider').min = 0.001;
+                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.0001 - 100 мкм (0.1 нм - 100 мкм)';
+                document.getElementById('separation-slider').min = 0.0001;
                 document.getElementById('separation-slider').max = 150;
-
                 document.getElementById('radius-slider').min = 0.0001;
                 document.getElementById('radius-slider').max = 100;
             }
@@ -836,7 +862,6 @@
         document.getElementById('radius-slider').value = document.getElementById('radius').value;
     }
 
-    // Синхронизация слайдеров и полей ввода
     document.getElementById('slit-width').addEventListener('input', function() {
         document.getElementById('slit-width-slider').value = this.value;
     });
@@ -877,15 +902,19 @@
         if (['single', 'double', 'triple'].includes(currentApertureType)) {
             document.getElementById('slit-params').classList.remove('hidden');
         }
+
         if (['double', 'triple'].includes(currentApertureType)) {
             document.getElementById('double-params').classList.remove('hidden');
         }
+
         if (currentApertureType === 'circle') {
             document.getElementById('circle-params').classList.remove('hidden');
         }
+
         if (currentApertureType === 'image') {
             document.getElementById('image-input').classList.add('active');
         }
+
         if (currentApertureType === 'grid') {
             document.getElementById('grid-input').classList.add('active');
         }
@@ -920,7 +949,6 @@
         }
     });
 
-    // Преобразовать значение в микрометры для отправки на сервер
     function toMicrometers(value) {
         if (currentUnit === 'nm') {
             return value / 1000;
@@ -960,7 +988,9 @@
         try {
             const response = await fetch('/simulate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(data)
             });
 
@@ -971,7 +1001,6 @@
                 document.getElementById('near-img').src = 'data:image/png;base64,' + result.near_pattern;
                 document.getElementById('far-img').src = 'data:image/png;base64,' + result.far_pattern;
 
-                // Форматирование длины волны
                 let wavelengthStr;
                 if (result.wavelength_nm >= 1) {
                     wavelengthStr = result.wavelength_nm.toFixed(2) + ' нм';
@@ -983,23 +1012,20 @@
 
                 document.getElementById('wavelength-info').textContent = wavelengthStr;
 
-                // Показ цвета
                 const colorInfo = document.getElementById('color-info');
                 if (result.wavelength_nm >= 380 && result.wavelength_nm <= 750) {
-                    colorInfo.innerHTML = '<span class="color-preview" style="background-color: ' +
-                        result.color_hex + '"></span> ' + result.color_hex + ' (видимый)';
+                    colorInfo.innerHTML = '<span class="color-preview" style="background-color: ' + result.color_hex + '"></span> ' + result.color_hex + ' (видимый)';
                 } else if (result.wavelength_nm < 380) {
                     colorInfo.textContent = 'Ультрафиолет (невидимый)';
                 } else {
                     colorInfo.textContent = 'Инфракрасный (невидимый)';
                 }
 
-                document.getElementById('energy-info').textContent = data.energy + ' эВ';
+                document.getElementById('energy-info').textContent = data.energy.toExponential(3) + ' эВ';
                 document.getElementById('near-distance-info').textContent = data.screen_distance + ' м';
                 document.getElementById('electrons-info').textContent = data.num_electrons.toLocaleString();
                 document.getElementById('field-size-info').textContent = result.field_size_um.toFixed(3) + ' мкм';
-                document.getElementById('gamma-info').textContent = gammaEnabled ?
-                    'Включена (γ = ' + data.gamma.toFixed(2) + ')' : 'Отключена';
+                document.getElementById('gamma-info').textContent = gammaEnabled ? 'Включена (γ = ' + data.gamma.toFixed(2) + ')' : 'Отключена';
 
                 document.getElementById('images-card').classList.remove('hidden');
                 document.getElementById('info-card').classList.remove('hidden');
