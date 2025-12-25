@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дифракция электронов - Симулятор</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 30px;
+        }
+
+        .control-panel {
+            background: rgba(26, 26, 46, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .panel-title {
+            color: #00d4ff;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+
+        input[type="number"],
+        input[type="range"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(15, 15, 35, 0.8);
+            color: #e0e0e0;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #00d4ff, #ff6b6b);
+            padding: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .aperture-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .aperture-btn {
+            padding: 12px 8px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            background: transparent;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85em;
+        }
+
+        .aperture-btn:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .aperture-btn.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .simulate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none;
+            border-radius: 10px;
+            color: #0f0f23;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .simulate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .simulate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .result-card {
+            background: rgba(26, 26, 46, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .result-title {
+            color: #00d4ff;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .image-container {
+            text-align: center;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .image-label {
+            margin-top: 10px;
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+
+        .info-panel {
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #b0b0b0;
+        }
+
+        .info-value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .custom-input-section {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .custom-input-section.active {
+            display: block;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 2px dashed rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 212, 255, 0.2);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .placeholder {
+            text-align: center;
+            padding: 100px 20px;
+            color: #666;
+        }
+
+        .placeholder-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #00d4ff;
+            opacity: 0.5;
+        }
+
+        .params-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .note {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .section-divider {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 1em;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .aperture-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            background: rgba(0, 212, 255, 0.2);
+            padding: 2px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .grid-cell {
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 2px;
+        }
+
+        .grid-cell:hover {
+            border-color: #00d4ff;
+        }
+
+        .grid-cell.active {
+            background: #ffffff;
+            border-color: #00d4ff;
+        }
+
+        .grid-buttons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .grid-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 212, 255, 0.1);
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .grid-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #00d4ff;
+            cursor: pointer;
+        }
+
+        .checkbox-wrapper label {
+            margin: 0;
+            cursor: pointer;
+            color: #e0e0e0;
+        }
+
+        .gamma-slider {
+            display: none;
+        }
+
+        .gamma-slider.active {
+            display: block;
+        }
+
+        .unit-toggle {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .unit-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            background: transparent;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .unit-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .unit-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .input-with-unit {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-with-unit input {
+            flex: 1;
+        }
+
+        .input-with-unit .unit-label {
+            min-width: 40px;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .color-preview {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-left: 10px;
+            vertical-align: middle;
+            border: 1px solid #fff;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                position: static;
+            }
+
+            .images-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Симулятор дифракции электронов</h1>
+
+    <div class="main-layout">
+        <div class="control-panel">
+            <h2 class="panel-title">Параметры симуляции</h2>
+
+            <div class="form-group">
+                <label>Тип апертуры:</label>
+                <div class="aperture-buttons">
+                    <button class="aperture-btn active" data-type="single">1 щель</button>
+                    <button class="aperture-btn" data-type="double">2 щели</button>
+                    <button class="aperture-btn" data-type="triple">3 щели</button>
+                    <button class="aperture-btn" data-type="circle">Круг</button>
+                    <button class="aperture-btn" data-type="image">Фото</button>
+                    <button class="aperture-btn" data-type="grid">Сетка</button>
+                </div>
+            </div>
+
+            <!-- Переключатель единиц измерения -->
+            <div class="form-group">
+                <label>Единицы размера:</label>
+                <div class="unit-toggle">
+                    <button class="unit-btn active" data-unit="um">Микрометры (мкм)</button>
+                    <button class="unit-btn" data-unit="nm">Нанометры (нм)</button>
+                </div>
+            </div>
+
+            <div class="params-section" id="slit-params">
+                <div class="form-group">
+                    <label>Ширина щели (<span id="slit-unit">мкм</span>):</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="slit-width" value="10" min="0.1" step="0.1">
+                        <span class="unit-label" id="slit-unit-label">мкм</span>
+                    </div>
+                    <input type="range" id="slit-width-slider" min="0.1" max="100" step="0.1" value="10">
+                    <div class="note" id="slit-width-note">Диапазон: 0.1 - 100 мкм</div>
+                </div>
+            </div>
+
+            <div class="params-section hidden" id="double-params">
+                <div class="form-group">
+                    <label>Расстояние между щелями (<span id="sep-unit">мкм</span>):</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="separation" value="25" min="0.1" step="0.1">
+                        <span class="unit-label" id="sep-unit-label">мкм</span>
+                    </div>
+                    <input type="range" id="separation-slider" min="1" max="150" step="1" value="25">
+                </div>
+            </div>
+
+            <div class="params-section hidden" id="circle-params">
+                <div class="form-group">
+                    <label>Радиус отверстия (<span id="radius-unit">мкм</span>):</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="radius" value="20" min="0.1" step="0.1">
+                        <span class="unit-label" id="radius-unit-label">мкм</span>
+                    </div>
+                    <input type="range" id="radius-slider" min="0.1" max="100" step="0.1" value="20">
+                </div>
+            </div>
+
+            <div class="custom-input-section" id="image-input">
+                <div class="form-group">
+                    <label>Загрузить изображение апертуры:</label>
+                    <div class="file-input-wrapper">
+                        <div class="file-input-label" id="file-label">
+                            Выберите изображение (белое = щель)
+                        </div>
+                        <input type="file" id="aperture-image" accept="image/*">
+                    </div>
+                </div>
+            </div>
+
+            <div class="custom-input-section" id="grid-input">
+                <div class="form-group">
+                    <label>Нарисуйте апертуру (белое = щель):</label>
+                    <div class="grid-container">
+                        <div class="aperture-grid" id="aperture-grid"></div>
+                        <div class="grid-buttons">
+                            <button class="grid-btn" onclick="clearGrid()">Очистить</button>
+                            <button class="grid-btn" onclick="fillGrid()">Заполнить</button>
+                            <button class="grid-btn" onclick="invertGrid()">Инвертировать</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+            <div class="section-title">Параметры отображения</div>
+
+            <div class="form-group">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="use-wavelength-color" checked>
+                    <label for="use-wavelength-color">Цвет по длине волны</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="gamma-enabled">
+                    <label for="gamma-enabled">Включить гамма-коррекцию (контраст)</label>
+                </div>
+                <div class="gamma-slider" id="gamma-slider">
+                    <label>Контраст (гамма): <span id="gamma-val">0.30</span></label>
+                    <input type="range" id="gamma" min="0.1" max="1.0" step="0.05" value="0.3">
+                    <div class="note">Меньше = ярче слабые максимумы</div>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+            <div class="section-title">Физические параметры</div>
+
+            <div class="form-group">
+                <label>Энергия электронов (эВ):</label>
+                <input type="number" id="energy" value="100" min="0.0001" max="100000" step="any">
+                <div class="note">Пример: 0.00074 эВ → λ ≈ 450 нм (синий)</div>
+            </div>
+
+            <div class="form-group">
+                <label>Количество электронов: <span id="electrons-val">10000</span></label>
+                <input type="range" id="num-electrons" min="100" max="100000" step="100" value="10000">
+            </div>
+
+            <div class="form-group">
+                <label>Расстояние до экрана (м):</label>
+                <input type="number" id="screen-distance" value="0.1" min="0" max="100" step="0.001">
+                <div class="note">При z=0 отображается апертура</div>
+            </div>
+
+            <div class="form-group">
+                <label>Размер сетки (пиксели):</label>
+                <select id="aperture-size">
+                    <option value="128">128 x 128</option>
+                    <option value="256" selected>256 x 256</option>
+                    <option value="512">512 x 512</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Размер пикселя (<span id="pixel-unit">мкм</span>):</label>
+                <div class="input-with-unit">
+                    <input type="number" id="pixel-size" value="1.0" min="0.0001" max="100" step="any">
+                    <span class="unit-label" id="pixel-unit-label">мкм</span>
+                </div>
+            </div>
+
+            <button class="simulate-btn" id="simulate-btn" onclick="runSimulation()">
+                Запустить симуляцию
+            </button>
+        </div>
+
+        <div class="results-panel">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Вычисление дифракционной картины...</p>
+            </div>
+
+            <div id="results-content">
+                <div class="placeholder" id="placeholder">
+                    <div class="placeholder-icon">~</div>
+                    <h3>Настройте параметры и запустите симуляцию</h3>
+                    <p>Выберите тип апертуры, настройте параметры электронов и расстояние до экрана</p>
+                </div>
+
+                <div class="result-card hidden" id="images-card">
+                    <h3 class="result-title">Дифракционные картины</h3>
+                    <div class="images-grid">
+                        <div class="image-container">
+                            <img id="aperture-img" src="" alt="Апертура">
+                            <div class="image-label">Апертура (щель)</div>
+                        </div>
+                        <div class="image-container">
+                            <img id="near-img" src="" alt="Ближняя зона">
+                            <div class="image-label">Ближняя зона (Френель)</div>
+                        </div>
+                        <div class="image-container">
+                            <img id="far-img" src="" alt="Дальняя зона">
+                            <div class="image-label">Дальняя зона (Фраунгофер)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card hidden" id="info-card">
+                    <h3 class="result-title">Информация о симуляции</h3>
+                    <div class="info-panel">
+                        <div class="info-item">
+                            <span class="info-label">Длина волны де Бройля:</span>
+                            <span class="info-value" id="wavelength-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Цвет (если видимый):</span>
+                            <span class="info-value" id="color-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Энергия электронов:</span>
+                            <span class="info-value" id="energy-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Расстояние до экрана:</span>
+                            <span class="info-value" id="near-distance-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Количество электронов:</span>
+                            <span class="info-value" id="electrons-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Размер поля:</span>
+                            <span class="info-value" id="field-size-info">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Гамма-коррекция:</span>
+                            <span class="info-value" id="gamma-info">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentApertureType = 'single';
+    let customImageData = null;
+    let gridState = Array(10).fill(null).map(() => Array(10).fill(0));
+    let currentUnit = 'um'; // 'um' или 'nm'
+
+    function initGrid() {
+        const grid = document.getElementById('aperture-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.dataset.row = i;
+                cell.dataset.col = j;
+                cell.addEventListener('click', () => toggleCell(i, j, cell));
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    function toggleCell(row, col, cell) {
+        gridState[row][col] = gridState[row][col] === 0 ? 1 : 0;
+        cell.classList.toggle('active');
+    }
+
+    function clearGrid() {
+        gridState = Array(10).fill(null).map(() => Array(10).fill(0));
+        document.querySelectorAll('.grid-cell').forEach(cell => cell.classList.remove('active'));
+    }
+
+    function fillGrid() {
+        gridState = Array(10).fill(null).map(() => Array(10).fill(1));
+        document.querySelectorAll('.grid-cell').forEach(cell => cell.classList.add('active'));
+    }
+
+    function invertGrid() {
+        const cells = document.querySelectorAll('.grid-cell');
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                gridState[i][j] = gridState[i][j] === 0 ? 1 : 0;
+            }
+        }
+        cells.forEach(cell => cell.classList.toggle('active'));
+    }
+
+    initGrid();
+
+    // Обработка переключения единиц измерения
+    document.querySelectorAll('.unit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const newUnit = this.dataset.unit;
+            const unitLabel = newUnit === 'um' ? 'мкм' : 'нм';
+
+            // Конвертируем значения при переключении
+            const conversionFactor = newUnit === 'nm' && currentUnit === 'um' ? 1000 :
+                newUnit === 'um' && currentUnit === 'nm' ? 0.001 : 1;
+
+            // Обновляем поля ввода
+            if (conversionFactor !== 1) {
+                const slitWidth = document.getElementById('slit-width');
+                const separation = document.getElementById('separation');
+                const radius = document.getElementById('radius');
+                const pixelSize = document.getElementById('pixel-size');
+
+                slitWidth.value = (parseFloat(slitWidth.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
+                separation.value = (parseFloat(separation.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
+                radius.value = (parseFloat(radius.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
+                pixelSize.value = (parseFloat(pixelSize.value) * conversionFactor).toFixed(newUnit === 'nm' ? 1 : 4);
+            }
+
+            // Обновляем подписи
+            document.getElementById('slit-unit').textContent = unitLabel;
+            document.getElementById('slit-unit-label').textContent = unitLabel;
+            document.getElementById('sep-unit').textContent = unitLabel;
+            document.getElementById('sep-unit-label').textContent = unitLabel;
+            document.getElementById('radius-unit').textContent = unitLabel;
+            document.getElementById('radius-unit-label').textContent = unitLabel;
+            document.getElementById('pixel-unit').textContent = unitLabel;
+            document.getElementById('pixel-unit-label').textContent = unitLabel;
+
+            // Обновляем диапазоны слайдеров
+            if (newUnit === 'nm') {
+                document.getElementById('slit-width-slider').min = 0.1;
+                document.getElementById('slit-width-slider').max = 10000;
+                document.getElementById('slit-width-slider').step = 0.1;
+                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.1 - 10000 нм';
+
+                document.getElementById('separation-slider').min = 0.1;
+                document.getElementById('separation-slider').max = 50000;
+
+                document.getElementById('radius-slider').min = 0.1;
+                document.getElementById('radius-slider').max = 50000;
+            } else {
+                document.getElementById('slit-width-slider').min = 0.0001;
+                document.getElementById('slit-width-slider').max = 100;
+                document.getElementById('slit-width-slider').step = 0.0001;
+                document.getElementById('slit-width-note').textContent = 'Диапазон: 0.0001 - 100 мкм';
+
+                document.getElementById('separation-slider').min = 0.001;
+                document.getElementById('separation-slider').max = 150;
+
+                document.getElementById('radius-slider').min = 0.0001;
+                document.getElementById('radius-slider').max = 100;
+            }
+
+            currentUnit = newUnit;
+            syncSliders();
+        });
+    });
+
+    function syncSliders() {
+        document.getElementById('slit-width-slider').value = document.getElementById('slit-width').value;
+        document.getElementById('separation-slider').value = document.getElementById('separation').value;
+        document.getElementById('radius-slider').value = document.getElementById('radius').value;
+    }
+
+    // Синхронизация слайдеров и полей ввода
+    document.getElementById('slit-width').addEventListener('input', function() {
+        document.getElementById('slit-width-slider').value = this.value;
+    });
+    document.getElementById('slit-width-slider').addEventListener('input', function() {
+        document.getElementById('slit-width').value = this.value;
+    });
+
+    document.getElementById('separation').addEventListener('input', function() {
+        document.getElementById('separation-slider').value = this.value;
+    });
+    document.getElementById('separation-slider').addEventListener('input', function() {
+        document.getElementById('separation').value = this.value;
+    });
+
+    document.getElementById('radius').addEventListener('input', function() {
+        document.getElementById('radius-slider').value = this.value;
+    });
+    document.getElementById('radius-slider').addEventListener('input', function() {
+        document.getElementById('radius').value = this.value;
+    });
+
+    document.querySelectorAll('.aperture-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.aperture-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentApertureType = this.dataset.type;
+            updateParamsVisibility();
+        });
+    });
+
+    function updateParamsVisibility() {
+        document.getElementById('slit-params').classList.add('hidden');
+        document.getElementById('double-params').classList.add('hidden');
+        document.getElementById('circle-params').classList.add('hidden');
+        document.getElementById('image-input').classList.remove('active');
+        document.getElementById('grid-input').classList.remove('active');
+
+        if (['single', 'double', 'triple'].includes(currentApertureType)) {
+            document.getElementById('slit-params').classList.remove('hidden');
+        }
+        if (['double', 'triple'].includes(currentApertureType)) {
+            document.getElementById('double-params').classList.remove('hidden');
+        }
+        if (currentApertureType === 'circle') {
+            document.getElementById('circle-params').classList.remove('hidden');
+        }
+        if (currentApertureType === 'image') {
+            document.getElementById('image-input').classList.add('active');
+        }
+        if (currentApertureType === 'grid') {
+            document.getElementById('grid-input').classList.add('active');
+        }
+    }
+
+    document.getElementById('gamma-enabled').addEventListener('change', function() {
+        const gammaSlider = document.getElementById('gamma-slider');
+        if (this.checked) {
+            gammaSlider.classList.add('active');
+        } else {
+            gammaSlider.classList.remove('active');
+        }
+    });
+
+    document.getElementById('num-electrons').addEventListener('input', function() {
+        document.getElementById('electrons-val').textContent = parseInt(this.value).toLocaleString();
+    });
+
+    document.getElementById('gamma').addEventListener('input', function() {
+        document.getElementById('gamma-val').textContent = parseFloat(this.value).toFixed(2);
+    });
+
+    document.getElementById('aperture-image').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                customImageData = e.target.result;
+                document.getElementById('file-label').textContent = 'Загружено: ' + file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Преобразовать значение в микрометры для отправки на сервер
+    function toMicrometers(value) {
+        if (currentUnit === 'nm') {
+            return value / 1000;
+        }
+        return value;
+    }
+
+    async function runSimulation() {
+        const btn = document.getElementById('simulate-btn');
+        const loading = document.getElementById('loading');
+        const placeholder = document.getElementById('placeholder');
+
+        btn.disabled = true;
+        loading.classList.add('active');
+        placeholder.classList.add('hidden');
+
+        const gammaEnabled = document.getElementById('gamma-enabled').checked;
+        const useWavelengthColor = document.getElementById('use-wavelength-color').checked;
+
+        const data = {
+            aperture_type: currentApertureType,
+            slit_width_um: toMicrometers(parseFloat(document.getElementById('slit-width').value)),
+            separation_um: toMicrometers(parseFloat(document.getElementById('separation').value)),
+            radius_um: toMicrometers(parseFloat(document.getElementById('radius').value)),
+            energy: parseFloat(document.getElementById('energy').value),
+            num_electrons: parseInt(document.getElementById('num-electrons').value),
+            screen_distance: parseFloat(document.getElementById('screen-distance').value),
+            aperture_size: parseInt(document.getElementById('aperture-size').value),
+            pixel_size: toMicrometers(parseFloat(document.getElementById('pixel-size').value)),
+            gamma_enabled: gammaEnabled,
+            gamma: parseFloat(document.getElementById('gamma').value),
+            use_wavelength_color: useWavelengthColor,
+            custom_image: currentApertureType === 'image' ? customImageData : null,
+            grid_data: currentApertureType === 'grid' ? gridState : null
+        };
+
+        try {
+            const response = await fetch('/simulate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                document.getElementById('aperture-img').src = 'data:image/png;base64,' + result.aperture;
+                document.getElementById('near-img').src = 'data:image/png;base64,' + result.near_pattern;
+                document.getElementById('far-img').src = 'data:image/png;base64,' + result.far_pattern;
+
+                // Форматирование длины волны
+                let wavelengthStr;
+                if (result.wavelength_nm >= 1) {
+                    wavelengthStr = result.wavelength_nm.toFixed(2) + ' нм';
+                } else if (result.wavelength_nm >= 0.001) {
+                    wavelengthStr = (result.wavelength_nm * 1000).toFixed(2) + ' пм';
+                } else {
+                    wavelengthStr = result.wavelength_nm.toExponential(3) + ' нм';
+                }
+
+                document.getElementById('wavelength-info').textContent = wavelengthStr;
+
+                // Показ цвета
+                const colorInfo = document.getElementById('color-info');
+                if (result.wavelength_nm >= 380 && result.wavelength_nm <= 750) {
+                    colorInfo.innerHTML = '<span class="color-preview" style="background-color: ' +
+                        result.color_hex + '"></span> ' + result.color_hex + ' (видимый)';
+                } else if (result.wavelength_nm < 380) {
+                    colorInfo.textContent = 'Ультрафиолет (невидимый)';
+                } else {
+                    colorInfo.textContent = 'Инфракрасный (невидимый)';
+                }
+
+                document.getElementById('energy-info').textContent = data.energy + ' эВ';
+                document.getElementById('near-distance-info').textContent = data.screen_distance + ' м';
+                document.getElementById('electrons-info').textContent = data.num_electrons.toLocaleString();
+                document.getElementById('field-size-info').textContent = result.field_size_um.toFixed(3) + ' мкм';
+                document.getElementById('gamma-info').textContent = gammaEnabled ?
+                    'Включена (γ = ' + data.gamma.toFixed(2) + ')' : 'Отключена';
+
+                document.getElementById('images-card').classList.remove('hidden');
+                document.getElementById('info-card').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка при выполнении симуляции');
+        } finally {
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+    }
+
+    updateParamsVisibility();
+</script>
+</body>
+</html>
