@@ -1,268 +1,365 @@
 from flask import Flask, render_template, request, jsonify
 import numpy as np
+from scipy.special import fresnel
+from scipy.ndimage import gaussian_filter
 from PIL import Image
 import base64
 import io
+import warnings
+
+warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
 
-def создать_одиночную_щель(размер, ширина):
-    апертура = np.zeros((размер, размер))
-    центр = размер // 2
-    полуширина = ширина // 2
-    апертура[:, центр - полуширина:центр + полуширина] = 1.0
-    return апертура
 
-def создать_двойную_щель(размер, ширина, разделение):
-    апертура = np.zeros((размер, размер))
-    центр = размер // 2
-    полуширина = ширина // 2
-    полуразделение = разделение // 2
-    апертура[:, центр - полуразделение - полуширина:центр - полуразделение + полуширина] = 1.0
-    апертура[:, центр + полуразделение - полуширина:центр + полуразделение + полуширина] = 1.0
-    return апертура
+class Aperture:
+    def __init__(self, size_pixels=512, pixel_size=1e-7):
+        self.size_pixels = size_pixels
+        self.pixel_size = pixel_size
+        self.physical_size = size_pixels * pixel_size
+        
+    def get_transmission(self):
+        raise NotImplementedError
+    
+    def calculate_fraunhofer(self, wavelength):
+        transmission = self.get_transmission()
+        padded_size = self.size_pixels * 4
+        padded = np.zeros((padded_size, padded_size))
+        start = (padded_size - self.size_pixels) // 2
+        padded[start:start+self.size_pixels, start:start+self.size_pixels] = transmission
+        F = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(padded)))
+        intensity = np.abs(F) ** 2
+        center = padded_size // 2
+        half = self.size_pixels // 2
+        intensity = intensity[center-half:center+half, center-half:center+half]
+        return self._normalize(intensity)
+        
+    def calculate_fresnel(self, wavelength, distance):
+        transmission = self.get_transmission()
+        k = 2 * np.pi / wavelength
+        fx = np.fft.fftfreq(self.size_pixels, self.pixel_size)
+        fy = np.fft.fftfreq(self.size_pixels, self.pixel_size)
+        FX, FY = np.meshgrid(fx, fy)
+        H = np.exp(-1j * np.pi * wavelength * distance * (FX**2 + FY**2))
+        T_fft = np.fft.fft2(transmission)
+        U_fft = T_fft * H
+        U = np.fft.ifft2(U_fft)
+        intensity = np.abs(U) ** 2
+        return self._normalize(intensity)
+    
+    def _normalize(self, arr):
+        arr = np.abs(arr)
+        max_val = np.max(arr)
+        if max_val > 0:
+            return arr / max_val
+        return arr
 
-def создать_тройную_щель(размер, ширина, разделение):
-    апертура = np.zeros((размер, размер))
-    центр = размер // 2
-    полуширина = ширина // 2
-    апертура[:, центр - полуширина:центр + полуширина] = 1.0
-    апертура[:, центр - разделение - полуширина:центр - разделение + полуширина] = 1.0
-    апертура[:, центр + разделение - полуширина:центр + разделение + полуширина] = 1.0
-    return апертура
 
-def создать_круглое_отверстие(размер, радиус):
-    апертура = np.zeros((размер, размер))
-    центр = размер // 2
-    y, x = np.ogrid[:размер, :размер]
-    маска = (x - центр)**2 + (y - центр)**2 <= радиус**2
-    апертура[маска] = 1.0
-    return апертура
+class SingleSlitAperture(Aperture):
+    def __init__(self, slit_width_pixels, size_pixels=512, pixel_size=1e-7):
+        super().__init__(size_pixels, pixel_size)
+        self.slit_width_pixels = slit_width_pixels
+        self.slit_width = slit_width_pixels * pixel_size
+        
+    def get_transmission(self):
+        aperture = np.zeros((self.size_pixels, self.size_pixels))
+        center = self.size_pixels // 2
+        hw = self.slit_width_pixels // 2
+        left = max(0, center - hw)
+        right = min(self.size_pixels, center + hw)
+        aperture[:, left:right] = 1.0
+        return aperture
+    
+    def calculate_fresnel(self, wavelength, distance):
+        x = np.linspace(-self.physical_size/2, self.physical_size/2, self.size_pixels)
+        y = np.linspace(-self.physical_size/2, self.physical_size/2, self.size_pixels)
+        X, Y = np.meshgrid(x, y)
+        scale = np.sqrt(2 / (wavelength * distance))
+        u1 = (X - self.slit_width/2) * scale
+        u2 = (X + self.slit_width/2) * scale
+        S1, C1 = fresnel(u1)
+        S2, C2 = fresnel(u2)
+        delta_C = C2 - C1
+        delta_S = S2 - S1
+        intensity = delta_C**2 + delta_S**2
+        return self._normalize(intensity)
 
-def создать_апертуру_из_изображения(данные_изображения, размер):
+
+class MultiSlitAperture(Aperture):
+    def __init__(self, n_slits, slit_width_pixels, slit_separation_pixels, 
+                 size_pixels=512, pixel_size=1e-7):
+        super().__init__(size_pixels, pixel_size)
+        self.n_slits = n_slits
+        self.slit_width_pixels = slit_width_pixels
+        self.slit_separation_pixels = slit_separation_pixels
+        self.slit_width = slit_width_pixels * pixel_size
+        self.period = slit_separation_pixels * pixel_size
+        
+    def get_transmission(self):
+        aperture = np.zeros((self.size_pixels, self.size_pixels))
+        center = self.size_pixels // 2
+        hw = self.slit_width_pixels // 2
+        
+        if self.n_slits % 2 == 1:
+            offsets = range(-(self.n_slits//2), self.n_slits//2 + 1)
+        else:
+            offsets = [i + 0.5 for i in range(-(self.n_slits//2), self.n_slits//2)]
+        
+        for offset in offsets:
+            pos = int(center + offset * self.slit_separation_pixels)
+            left = max(0, pos - hw)
+            right = min(self.size_pixels, pos + hw)
+            if left < right:
+                aperture[:, left:right] = 1.0
+            
+        return aperture
+    
+    def calculate_fresnel(self, wavelength, distance):
+        x = np.linspace(-self.physical_size/2, self.physical_size/2, self.size_pixels)
+        y = np.linspace(-self.physical_size/2, self.physical_size/2, self.size_pixels)
+        X, Y = np.meshgrid(x, y)
+        k = 2 * np.pi / wavelength
+        scale = np.sqrt(2 / (wavelength * distance))
+        
+        if self.n_slits % 2 == 1:
+            slit_centers = [i * self.period for i in range(-(self.n_slits//2), self.n_slits//2 + 1)]
+        else:
+            slit_centers = [(i + 0.5) * self.period for i in range(-(self.n_slits//2), self.n_slits//2)]
+        
+        U_total = np.zeros_like(X, dtype=complex)
+        
+        for center in slit_centers:
+            edge1 = center - self.slit_width/2
+            edge2 = center + self.slit_width/2
+            u1 = (X - edge1) * scale
+            u2 = (X - edge2) * scale
+            S1, C1 = fresnel(u1)
+            S2, C2 = fresnel(u2)
+            U_slit = (C2 - C1) + 1j * (S2 - S1)
+            phase_factor = np.exp(-1j * k * center * X / distance)
+            U_total += U_slit * phase_factor
+        
+        intensity = np.abs(U_total) ** 2
+        return self._normalize(intensity)
+
+
+class CircularAperture(Aperture):
+    def __init__(self, radius_pixels, size_pixels=512, pixel_size=1e-7):
+        super().__init__(size_pixels, pixel_size)
+        self.radius_pixels = radius_pixels
+        self.radius = radius_pixels * pixel_size
+        self.diameter = 2 * self.radius
+        
+    def get_transmission(self):
+        aperture = np.zeros((self.size_pixels, self.size_pixels))
+        center = self.size_pixels // 2
+        y, x = np.ogrid[:self.size_pixels, :self.size_pixels]
+        mask = (x - center)**2 + (y - center)**2 <= self.radius_pixels**2
+        aperture[mask] = 1.0
+        return aperture
+
+
+class ArbitraryAperture(Aperture):
+    def __init__(self, transmission_array, pixel_size=1e-7):
+        size_pixels = transmission_array.shape[0]
+        super().__init__(size_pixels, pixel_size)
+        self.transmission = transmission_array.astype(float)
+        
+    def get_transmission(self):
+        return self.transmission.copy()
+
+
+def create_aperture(aperture_type, **kwargs):
+    size = kwargs.get('size_pixels', 512)
+    pxsz = kwargs.get('pixel_size', 1e-7)
+    
+    if aperture_type == 'single':
+        return SingleSlitAperture(
+            slit_width_pixels=kwargs.get('slit_width', 20),
+            size_pixels=size,
+            pixel_size=pxsz
+        )
+    elif aperture_type == 'double':
+        return MultiSlitAperture(
+            n_slits=2,
+            slit_width_pixels=kwargs.get('slit_width', 20),
+            slit_separation_pixels=kwargs.get('slit_separation', 60),
+            size_pixels=size,
+            pixel_size=pxsz
+        )
+    elif aperture_type == 'triple':
+        return MultiSlitAperture(
+            n_slits=3,
+            slit_width_pixels=kwargs.get('slit_width', 20),
+            slit_separation_pixels=kwargs.get('slit_separation', 60),
+            size_pixels=size,
+            pixel_size=pxsz
+        )
+    elif aperture_type == 'n_slit':
+        return MultiSlitAperture(
+            n_slits=kwargs.get('n_slits', 5),
+            slit_width_pixels=kwargs.get('slit_width', 10),
+            slit_separation_pixels=kwargs.get('slit_separation', 40),
+            size_pixels=size,
+            pixel_size=pxsz
+        )
+    elif aperture_type == 'circle':
+        return CircularAperture(
+            radius_pixels=kwargs.get('radius', 40),
+            size_pixels=size,
+            pixel_size=pxsz
+        )
+    elif aperture_type == 'image':
+        img_data = kwargs.get('image_data')
+        transmission = image_to_transmission(img_data, size)
+        return ArbitraryAperture(transmission, pxsz)
+    elif aperture_type == 'matrix':
+        mat_data = kwargs.get('matrix_data')
+        transmission = matrix_to_transmission(mat_data, size)
+        return ArbitraryAperture(transmission, pxsz)
+    else:
+        return SingleSlitAperture(20, size, pxsz)
+
+
+def image_to_transmission(image_data, size):
     try:
-        if ',' in данные_изображения:
-            данные_изображения = данные_изображения.split(',')[1]
-        байты_изображения = base64.b64decode(данные_изображения)
-        изображение = Image.open(io.BytesIO(байты_изображения)).convert('L')
-        изображение = изображение.resize((размер, размер), Image.LANCZOS)
-        апертура = np.array(изображение) / 255.0
-        порог = 0.5
-        апертура = (апертура > порог).astype(float)
-        return апертура
+        if image_data and ',' in image_data:
+            image_data = image_data.split(',')[1]
+        img_bytes = base64.b64decode(image_data)
+        img = Image.open(io.BytesIO(img_bytes)).convert('L')
+        img = img.resize((size, size), Image.LANCZOS)
+        arr = np.array(img) / 255.0
+        return (arr > 0.5).astype(float)
     except Exception as e:
-        print(f"Ошибка загрузки изображения: {e}")
-        return создать_одиночную_щель(размер, 20)
+        print(f"Error loading image: {e}")
+        return np.zeros((size, size))
 
-def создать_апертуру_из_матрицы(данные_матрицы, размер):
+
+def matrix_to_transmission(matrix_data, size):
     try:
-        матрица = np.array(данные_матрицы, dtype=float)
-        if матрица.size == 0:
-            return создать_одиночную_щель(размер, 20)
-        масштаб_y = размер // матрица.shape[0]
-        масштаб_x = размер // матрица.shape[1]
-        апертура = np.kron(матрица, np.ones((масштаб_y, масштаб_x)))
-        if апертура.shape[0] != размер or апертура.shape[1] != размер:
-            новая_апертура = np.zeros((размер, размер))
-            мин_y = min(размер, апертура.shape[0])
-            мин_x = min(размер, апертура.shape[1])
-            новая_апертура[:мин_y, :мин_x] = апертура[:мин_y, :мин_x]
-            апертура = новая_апертура
-        return апертура
+        matrix = np.array(matrix_data, dtype=float)
+        if matrix.size == 0:
+            return np.zeros((size, size))
+        scale_y = size // matrix.shape[0]
+        scale_x = size // matrix.shape[1]
+        transmission = np.kron(matrix, np.ones((scale_y, scale_x)))
+        result = np.zeros((size, size))
+        my = min(size, transmission.shape[0])
+        mx = min(size, transmission.shape[1])
+        result[:my, :mx] = transmission[:my, :mx]
+        return result
     except Exception as e:
-        print(f"Ошибка создания апертуры из матрицы: {e}")
-        return создать_одиночную_щель(размер, 20)
+        print(f"Error creating aperture from matrix: {e}")
+        return np.zeros((size, size))
 
-def дифракция_френеля(апертура, длина_волны, расстояние, размер_пикселя):
-    размер = апертура.shape[0]
-    k = 2 * np.pi / длина_волны
 
-    fx = np.fft.fftfreq(размер, размер_пикселя)
-    fy = np.fft.fftfreq(размер, размер_пикселя)
-    FX, FY = np.meshgrid(fx, fy)
-
-    число_френеля = (размер_пикселя * размер / 2)**2 / (длина_волны * расстояние)
-
-    if число_френеля > 0.1:
-        аргумент = 1 - (длина_волны * FX)**2 - (длина_волны * FY)**2
-        аргумент = np.clip(аргумент, 0, None)
-        H = np.exp(1j * k * расстояние * np.sqrt(аргумент))
-        H[аргумент <= 0] = 0
+def apply_electron_statistics(intensity, n_electrons):
+    prob = intensity.copy()
+    prob_sum = np.sum(prob)
+    if prob_sum > 0:
+        prob /= prob_sum
     else:
-        H = np.exp(-1j * np.pi * длина_волны * расстояние * (FX**2 + FY**2))
+        prob = np.ones_like(prob) / prob.size
+    flat_prob = prob.flatten()
+    indices = np.random.choice(len(flat_prob), size=n_electrons, p=flat_prob)
+    result = np.zeros_like(flat_prob)
+    np.add.at(result, indices, 1)
+    result = result.reshape(intensity.shape)
+    result = gaussian_filter(result, sigma=1.5)
+    if np.max(result) > 0:
+        result /= np.max(result)
+    return result
 
-    U0 = np.fft.fft2(апертура)
-    U = np.fft.ifft2(U0 * np.fft.fftshift(H))
 
-    интенсивность = np.abs(U)**2
+def apply_gamma(arr, gamma=0.5):
+    result = np.power(np.clip(arr, 0, None), gamma)
+    if np.max(result) > 0:
+        result /= np.max(result)
+    return result
 
-    if np.max(интенсивность) > 0:
-        интенсивность = интенсивность / np.max(интенсивность)
 
-    return интенсивность
+def array_to_png_base64(arr, colormap='hot'):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    normalized = arr / np.max(arr) if np.max(arr) > 0 else arr
+    cmap = plt.cm.get_cmap(colormap)
+    colored = cmap(normalized)
+    uint8 = (colored[:, :, :3] * 255).astype(np.uint8)
+    img = Image.fromarray(uint8, mode='RGB')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    return f"data:image/png;base64,{b64}"
 
-def дифракция_фраунгофера(апертура, длина_волны, расстояние, размер_пикселя):
-    размер = апертура.shape[0]
 
-    дополненный_размер = размер * 2
-    дополненная = np.zeros((дополненный_размер, дополненный_размер))
-    начало = дополненный_размер // 4
-    дополненная[начало:начало+размер, начало:начало+размер] = апертура
+def array_to_gray_png_base64(arr):
+    normalized = arr / np.max(arr) if np.max(arr) > 0 else arr
+    uint8 = (normalized * 255).astype(np.uint8)
+    img = Image.fromarray(uint8, mode='L')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    return f"data:image/png;base64,{b64}"
 
-    фурье = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(дополненная)))
-    интенсивность = np.abs(фурье)**2
-
-    центр = дополненный_размер // 2
-    половина = размер // 2
-    интенсивность = интенсивность[центр-половина:центр+половина, центр-половина:центр+половина]
-
-    if np.max(интенсивность) > 0:
-        интенсивность = интенсивность / np.max(интенсивность)
-
-    return интенсивность
-
-def применить_статистику_электронов(интенсивность, количество_электронов):
-    вероятность = интенсивность.copy()
-    сумма = np.sum(вероятность)
-    if сумма > 0:
-        вероятность = вероятность / сумма
-    else:
-        вероятность = np.ones_like(вероятность) / вероятность.size
-
-    плоская_вероятность = вероятность.flatten()
-
-    индексы = np.random.choice(len(плоская_вероятность), size=количество_электронов, p=плоская_вероятность)
-
-    результат = np.zeros_like(плоская_вероятность)
-    np.add.at(результат, индексы, 1)
-
-    результат = результат.reshape(интенсивность.shape)
-
-    сигма = 1.5
-    from scipy.ndimage import gaussian_filter
-    результат = gaussian_filter(результат, sigma=сигма)
-
-    if np.max(результат) > 0:
-        результат = результат / np.max(результат)
-
-    return результат
-
-def применить_статистику_электронов_простая(интенсивность, количество_электронов):
-    вероятность = интенсивность.copy()
-    сумма = np.sum(вероятность)
-    if сумма > 0:
-        вероятность = вероятность / сумма
-    else:
-        вероятность = np.ones_like(вероятность) / вероятность.size
-
-    плоская_вероятность = вероятность.flatten()
-    индексы = np.random.choice(len(плоская_вероятность), size=количество_электронов, p=плоская_вероятность)
-
-    результат = np.zeros_like(плоская_вероятность)
-    np.add.at(результат, индексы, 1)
-    результат = результат.reshape(интенсивность.shape)
-
-    размер_ядра = 3
-    ядро = np.ones((размер_ядра, размер_ядра)) / (размер_ядра**2)
-    from scipy.signal import convolve2d
-    результат = convolve2d(результат, ядро, mode='same', boundary='wrap')
-
-    if np.max(результат) > 0:
-        результат = результат / np.max(результат)
-
-    return результат
-
-def массив_в_base64_png(массив):
-    нормализованный = массив.copy()
-    if np.max(нормализованный) > 0:
-        нормализованный = нормализованный / np.max(нормализованный)
-
-    uint8_массив = (нормализованный * 255).astype(np.uint8)
-    изображение = Image.fromarray(uint8_массив, mode='L')
-
-    буфер = io.BytesIO()
-    изображение.save(буфер, format='PNG')
-    строка_изображения = base64.b64encode(буфер.getvalue()).decode('utf-8')
-
-    return f"data:image/png;base64,{строка_изображения}"
-
-def применить_гамма_коррекцию(интенсивность, гамма=0.5):
-    результат = np.power(интенсивность, гамма)
-    if np.max(результат) > 0:
-        результат = результат / np.max(результат)
-    return результат
 
 @app.route('/')
-def главная():
+def index():
     return render_template('index.html')
 
+
 @app.route('/calculate', methods=['POST'])
-def рассчитать():
+def calculate():
     try:
-        данные = request.get_json()
-
-        тип_апертуры = данные.get('aperture_type', 'single')
-        расстояние_экрана = float(данные.get('screen_distance', 1.0))
-        количество_электронов = int(данные.get('num_electrons', 100000))
-        ширина_щели = int(данные.get('slit_width', 20))
-        разделение_щелей = int(данные.get('slit_separation', 60))
-        радиус_круга = int(данные.get('circle_radius', 40))
-        длина_волны = float(данные.get('wavelength', 5e-12))
-        размер_пикселя = float(данные.get('pixel_size', 1e-7))
-        данные_изображения = данные.get('image_data', None)
-        данные_матрицы = данные.get('matrix_data', None)
-
-        размер = 512
-
-        количество_электронов = max(10000, min(1000000, количество_электронов))
-        расстояние_экрана = max(0.001, min(100.0, расстояние_экрана))
-
-        if тип_апертуры == 'single':
-            апертура = создать_одиночную_щель(размер, ширина_щели)
-        elif тип_апертуры == 'double':
-            апертура = создать_двойную_щель(размер, ширина_щели, разделение_щелей)
-        elif тип_апертуры == 'triple':
-            апертура = создать_тройную_щель(размер, ширина_щели, разделение_щелей)
-        elif тип_апертуры == 'circle':
-            апертура = создать_круглое_отверстие(размер, радиус_круга)
-        elif тип_апертуры == 'image' and данные_изображения:
-            апертура = создать_апертуру_из_изображения(данные_изображения, размер)
-        elif тип_апертуры == 'matrix' and данные_матрицы:
-            апертура = создать_апертуру_из_матрицы(данные_матрицы, размер)
-        else:
-            апертура = создать_одиночную_щель(размер, ширина_щели)
-
-        интенсивность_френеля = дифракция_френеля(апертура, длина_волны, расстояние_экрана, размер_пикселя)
-        интенсивность_фраунгофера = дифракция_фраунгофера(апертура, длина_волны, расстояние_экрана * 1000, размер_пикселя)
-
-        try:
-            from scipy.ndimage import gaussian_filter
-            френель_с_электронами = применить_статистику_электронов(интенсивность_френеля, количество_электронов)
-            фраунгофер_с_электронами = применить_статистику_электронов(интенсивность_фраунгофера, количество_электронов)
-        except ImportError:
-            френель_с_электронами = применить_статистику_электронов_простая(интенсивность_френеля, количество_электронов)
-            фраунгофер_с_электронами = применить_статистику_электронов_простая(интенсивность_фраунгофера, количество_электронов)
-
-        френель_для_отображения = применить_гамма_коррекцию(френель_с_электронами, 0.4)
-        фраунгофер_для_отображения = применить_гамма_коррекцию(фраунгофер_с_электронами, 0.4)
-
-        изображение_апертуры = массив_в_base64_png(апертура)
-        изображение_френеля = массив_в_base64_png(френель_для_отображения)
-        изображение_фраунгофера = массив_в_base64_png(фраунгофер_для_отображения)
-
+        data = request.get_json()
+        ap_type = data.get('aperture_type', 'single')
+        distance = float(data.get('screen_distance', 1.0))
+        n_elec = int(data.get('num_electrons', 100000))
+        wavelength = float(data.get('wavelength', 5e-12))
+        pixel_size = float(data.get('pixel_size', 1e-7))
+        size = 512
+        n_elec = max(10000, min(1000000, n_elec))
+        distance = max(0.001, min(100.0, distance))
+        
+        aperture = create_aperture(
+            ap_type,
+            size_pixels=size,
+            pixel_size=pixel_size,
+            slit_width=int(data.get('slit_width', 20)),
+            slit_separation=int(data.get('slit_separation', 60)),
+            radius=int(data.get('circle_radius', 40)),
+            n_slits=int(data.get('n_slits', 5)),
+            image_data=data.get('image_data'),
+            matrix_data=data.get('matrix_data')
+        )
+        
+        I_fresnel = aperture.calculate_fresnel(wavelength, distance)
+        I_fraunhofer = aperture.calculate_fraunhofer(wavelength)
+        
+        fresnel_elec = apply_electron_statistics(I_fresnel, n_elec)
+        fraunhofer_elec = apply_electron_statistics(I_fraunhofer, n_elec)
+        fresnel_disp = apply_gamma(fresnel_elec, 0.4)
+        fraunhofer_disp = apply_gamma(fraunhofer_elec, 0.4)
+        ap_img = array_to_gray_png_base64(aperture.get_transmission())
+        fr_img = array_to_png_base64(fresnel_disp, 'hot')
+        fh_img = array_to_png_base64(fraunhofer_disp, 'hot')
+        char_size = aperture.physical_size / 4
+        F = char_size**2 / (wavelength * distance)
+        
         return jsonify({
             'success': True,
-            'aperture': изображение_апертуры,
-            'fresnel': изображение_френеля,
-            'fraunhofer': изображение_фраунгофера,
-            'fresnel_number': float((размер_пикселя * размер / 2)**2 / (длина_волны * расстояние_экрана)),
+            'aperture': ap_img,
+            'fresnel': fr_img,
+            'fraunhofer': fh_img,
+            'fresnel_number': float(F),
+            'algorithm': aperture.__class__.__name__,
             'info': {
-                'wavelength': длина_волны,
-                'distance': расстояние_экрана,
-                'electrons': количество_электронов
+                'wavelength': wavelength,
+                'distance': distance,
+                'electrons': n_elec,
+                'aperture_type': ap_type
             }
         })
-
     except Exception as e:
         import traceback
         return jsonify({
@@ -271,14 +368,70 @@ def рассчитать():
             'traceback': traceback.format_exc()
         }), 500
 
+
+@app.route('/calculate_analytical', methods=['POST'])
+def calculate_analytical():
+    try:
+        data = request.get_json()
+        ap_type = data.get('aperture_type', 'single')
+        distance = float(data.get('screen_distance', 1.0))
+        wavelength = float(data.get('wavelength', 5e-12))
+        pixel_size = float(data.get('pixel_size', 1e-7))
+        size = 512
+        
+        aperture = create_aperture(
+            ap_type,
+            size_pixels=size,
+            pixel_size=pixel_size,
+            slit_width=int(data.get('slit_width', 20)),
+            slit_separation=int(data.get('slit_separation', 60)),
+            radius=int(data.get('circle_radius', 40)),
+            n_slits=int(data.get('n_slits', 5)),
+            image_data=data.get('image_data'),
+            matrix_data=data.get('matrix_data')
+        )
+        
+        I_fresnel = aperture.calculate_fresnel(wavelength, distance)
+        I_fraunhofer = aperture.calculate_fraunhofer(wavelength)
+        
+        fresnel_disp = apply_gamma(I_fresnel, 0.5)
+        fraunhofer_disp = apply_gamma(I_fraunhofer, 0.5)
+        ap_img = array_to_gray_png_base64(aperture.get_transmission())
+        fr_img = array_to_png_base64(fresnel_disp, 'inferno')
+        fh_img = array_to_png_base64(fraunhofer_disp, 'inferno')
+        char_size = aperture.physical_size / 4
+        F = char_size**2 / (wavelength * distance)
+        
+        return jsonify({
+            'success': True,
+            'aperture': ap_img,
+            'fresnel': fr_img,
+            'fraunhofer': fh_img,
+            'fresnel_number': float(F),
+            'algorithm': aperture.__class__.__name__ + ' (analytical)',
+            'info': {
+                'wavelength': wavelength,
+                'distance': distance,
+                'electrons': 0,
+                'aperture_type': ap_type
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
 @app.route('/health')
-def проверка_здоровья():
+def health():
     return jsonify({'status': 'ok'})
+
 
 if __name__ == '__main__':
     import os
-    if not os.path.exists('templates'):
-        os.makedirs('templates')
-    if not os.path.exists('static'):
-        os.makedirs('static')
+    os.makedirs('templates', exist_ok=True)
+    os.makedirs('static', exist_ok=True)
     app.run(debug=True, host='127.0.0.1', port=5000)
